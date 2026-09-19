@@ -1,0 +1,70 @@
+#!/bin/bash
+
+# NexTrade Environment Check Script
+# This script checks for the required tools and services for the NexTrade project.
+
+echo "=== NexTrade Environment Check ==="
+echo ""
+
+# Check OS and Architecture
+echo "System Information:"
+echo "  OS: $(uname -s) $(uname -r)"
+echo "  Architecture: $(uname -m)"
+echo "  Shell: $SHELL"
+echo ""
+
+# Function to check if a command exists
+check_command() {
+  if command -v "$1" &> /dev/null; then
+    echo "  ✅ $1: $(command -v "$1")"
+    # Get version if possible
+    version=$($1 --version 2>/dev/null | head -n 1)
+    if [ -n "$version" ]; then
+      echo "     Version: $version"
+    fi
+  else
+    echo "  ❌ $1: Not found"
+  fi
+  echo ""
+}
+
+echo "Checking required tools:"
+check_command "node"
+check_command "npm"
+check_command "python3"
+check_command "git"
+check_command "psql"
+check_command "flutter"
+check_command "docker"
+check_command "code"
+
+# Check if PostgreSQL is running (optional)
+echo "Checking PostgreSQL service:"
+if command -v psql &> /dev/null; then
+  # Try to connect to the default database (or we can check if the service is up)
+  # We'll check if we can connect to localhost:5432
+  if timeout 2 bash -c "</dev/tcp/localhost/5432" 2>/dev/null; then
+    echo "  ✅ PostgreSQL is accepting connections on localhost:5432"
+  else
+    echo "  ⚠️  PostgreSQL is not accepting connections on localhost:5432"
+    echo "     Make sure PostgreSQL is running and accessible."
+  fi
+else
+  echo "  ⚠️  psql not found; skipping PostgreSQL connection check"
+fi
+echo ""
+
+# Check for .env.example files in each service
+echo "Checking for .env.example files:"
+for dir in backend frontend ai; do
+  if [ -f "/home/ro0t_h4ck/NEXTRADE/$dir/.env.example" ]; then
+    echo "  ✅ $dir/.env.example exists"
+  else
+    echo "  ❌ $dir/.env.example missing"
+  fi
+done
+echo ""
+
+echo "=== Environment Check Complete ==="
+echo "Note: This script only checks for the presence of tools and basic connectivity."
+echo "It does not validate configurations or start services."

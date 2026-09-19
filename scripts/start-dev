@@ -1,0 +1,67 @@
+#!/bin/bash
+
+# NexTrade Start Development Script
+# This script starts the backend, frontend, and AI services in development mode.
+
+echo "=== Starting NexTrade Development Services ==="
+echo ""
+
+# Function to start a service and run it in the background
+start_service() {
+  local name="$1"
+  local dir="$2"
+  local command="$3"
+  local log_file="$4"
+
+  echo "Starting $name..."
+  cd "/home/ro0t_h4ck/NEXTRADE/$dir" || {
+    echo "  ❌ Failed to enter directory $dir"
+    return 1
+  }
+
+  # Check if the service is already running by looking for the process (simple check)
+  # We'll just start it and hope for the best; the user can manage ports.
+
+  # Start the command in the background and redirect output to log file
+  eval "$command" > "$log_file" 2>&1 &
+  local pid=$!
+
+  # Give it a moment to start
+  sleep 2
+
+  # Check if the process is still running
+  if kill -0 "$pid" 2>/dev/null; then
+    echo "  ✅ $name started (PID: $pid)"
+    echo "     Logs: $log_file"
+  else
+    echo "  ❌ $name failed to start (check $log_file for details)"
+  fi
+
+  cd - > /dev/null
+  echo ""
+}
+
+# Define log directory
+LOG_DIR="/home/ro0t_h4ck/NEXTRADE/logs"
+mkdir -p "$LOG_DIR"
+
+# Start Backend (Node.js)
+start_service "Backend" "backend" "npm run dev" "$LOG_DIR/backend.log"
+
+# Start Frontend (React)
+start_service "Frontend" "frontend" "npm run dev" "$LOG_DIR/frontend.log"
+
+# Start AI Service (Python)
+start_service "AI Service" "ai" "python run.py" "$LOG_DIR/ai.log"
+
+echo "=== All services started ==="
+echo "To stop the services, you can kill the processes using their PIDs (shown above) or use:"
+echo "  pkill -f \"npm run dev\""
+echo "  pkill -f \"python run.py\""
+echo ""
+echo "To view logs, use: tail -f <log_file>"
+echo "Logs are stored in: $LOG_DIR"
+echo ""
+echo "Note: Make sure PostgreSQL is running before starting the services."
+echo "You can start PostgreSQL with: sudo systemctl start postgresql"
+echo "Or using Docker: docker-compose up -d db (from the project root)"

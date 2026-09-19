@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  # PostgreSQL database
+  db:
+    image: postgres:18
+    container_name: nextrade_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nextrade
+      POSTGRES_USER: nextrade
+      POSTGRES_PASSWORD: nextrade_password  # Change in .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  # Backend (to be configured)
+  # backend:
+  #   build: ./backend
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - DB_HOST=db
+  #     - DB_PORT=5432
+  #     - DB_NAME=nextrade
+  #     - DB_USER=nextrade
+  #     - DB_PASSWORD=nextrade_password
+  #   depends_on:
+  #     - db
+
+  # AI service (to be configured)
+  # ai:
+  #   build: ./ai
+  #   ports:
+  #     - "5000:5000"
+  #   environment:
+  #     - DATABASE_URL=postgresql://nextrade:nextrade_password@db:5432/nextrade
+  #   depends_on:
+  #     - db
+
+volumes:
+  postgres_data:

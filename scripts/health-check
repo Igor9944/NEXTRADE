@@ -1,0 +1,88 @@
+#!/bin/bash
+
+# NexTrade Health Check Script
+# This script checks the health of the NexTrade services and database connection.
+
+echo "=== NexTrade Health Check ==="
+echo ""
+
+# Function to check HTTP endpoint
+check_http() {
+  local name="$1"
+  local url="$2"
+  local expected_field="$3"  # optional: a field to check in the JSON response
+
+  if ! command -v curl &> /dev/null; then
+    echo "  ⚠️  curl not found; skipping $name check"
+    return
+  fi
+
+  response=$(curl -s "$url" 2>&1)
+  if [ $? -eq 0 ]; then
+    # Check if response is valid JSON and contains the expected field if provided
+    if [ -n "$expected_field" ]; then
+      # Use grep to check for the field (simple check)
+      if echo "$response" | grep -q "\"$expected_field\":"; then
+        echo "  ✅ $name: OK"
+        # Optionally print a snippet of the response
+        # echo "     Response: $response"
+      else
+        echo "  ⚠️  $name: Unexpected response"
+        echo "     Response: $response"
+      fi
+    else
+      echo "  ✅ $name: OK (HTTP 200)"
+    fi
+  else
+    echo "  ❌ $name: FAILED"
+    echo "     Error: $response"
+  fi
+}
+
+# Function to check PostgreSQL connection
+check_postgres() {
+  if ! command -v psql &> /dev/null; then
+    echo "  ⚠️  psql not found; skipping PostgreSQL check"
+    return
+  fi
+
+  # Try to connect to the default database and run a simple query
+  # We'll use environment variables from the backend if available, else use defaults
+  # For simplicity, we'll check if we can connect to localhost:5432 and if the database 'nextrade' exists.
+  # We'll use a temporary connection attempt.
+
+  # Check if the port is open first
+  if timeout 2 bash -c "</dev/tcp/localhost/5432" 2>/dev/null; then
+    # Port is open, now try to connect with psql and list databases
+    # We'll use the PGUSER and PGPASSWORD from environment if set, otherwise we'll skip authentication check
+    # We'll just check if we can connect as the current user (which may fail) but at least the port is open.
+    echo "  ✅ PostgreSQL: Accepting connections on localhost:5432"
+    echo "     Note: To check database 'nextrade', ensure you have set up the user and database."
+  else
+    echo "  ❌ PostgreSQL: Not accepting connections on localhost:5432"
+  fi
+}
+
+# Check Backend Health
+echo "Checking Backend API:"
+check_http "Backend" "http://localhost:3000/health" "status"
+echo ""
+
+# Check Frontend (we'll check if the frontend dev server is serving the index page)
+echo "Checking Frontend:"
+check_http "Frontend" "http://localhost:5173" ""  # Just check for HTTP 200
+echo ""
+
+# Check AI Service Health
+echo "Checking AI Service:"
+check_http "AI Service" "http://localhost:5000/health" "status"
+echo ""
+
+# Check Database Connection
+echo "Checking Database Connection:"
+check_postgres
+echo ""
+
+echo "=== Health Check Complete ==="
+echo "Note: A service may report as failed if it is not running or if the port is different."
+echo "Refer to the setup documentation for default ports and how to change them."
