@@ -1,0 +1,217 @@
+# NexTrade Modèle Logique des Données (MLD)
+
+## Tables et Structure
+
+### 1. utilisateurs
+- id_user: UUID (PK)
+- email: VARCHAR(255) (UNIQUE, NOT NULL)
+- password_hash: VARCHAR(255) (NOT NULL)
+- role: VARCHAR(50) (NOT NULL) [CHECK: IN ('ADMIN', 'CLIENT', 'FOURNISSEUR', 'COMMERCANT', 'TRANSPORTEUR')]
+- nom_entreprise: VARCHAR(255)
+- telephone: VARCHAR(20)
+- created_at: TIMESTAMPTZ (DEFAULT: CURRENT_TIMESTAMP)
+- updated_at: TIMESTAMPTZ (DEFAULT: CURRENT_TIMESTAMP)
+
+### 2. produits
+- id_product: UUID (PK)
+- id_fournisseur: UUID (NOT NULL, FK → utilisateurs.id_user)
+- nom: VARCHAR(255) (NOT NULL)
+- description: TEXT
+- categorie: VARCHAR(100)
+- prix_detail: DECIMAL(10,2) (NOT NULL) [CHECK: >= 0]
+- prix_gros: DECIMAL(10,2) (NOT NULL) [CHECK: >= 0]
+- created_at: TIMESTAMPTZ (DEFAULT: CURRENT_TIMESTAMP)
+- updated_at: TIMESTAMPTZ (DEFAULT: CURRENT_TIMESTAMP)
+
+### 3. inventaire
+- id_stock: UUID (PK)
+- id_product: UUID (NOT NULL, UNIQUE, FK → produits.id_product)
+- quantite_disponible: INTEGER (NOT NULL) [CHECK: >= 0]
+- seuil_alerte: INTEGER (NOT NULL) [CHECK: >= 0]
+- last_updated: TIMESTAMPTZ (DEFAULT: CURRENT_TIMESTAMP)
+
+### 4. commandes
+- id_order: UUID (PK)
+- id_client: UUID (NOT NULL, FK → utilisateurs.id_user)
+- montant_total: DECIMAL(12,2) (NOT NULL) [CHECK: >= 0]
+- statut: VARCHAR(50) (NOT NULL) [CHECK: IN ('EN_ATTENTE', 'PAYEE', 'EN_PREPARATION', 'EXPEDIEE', 'LIVREE', 'ANNULEE')]
+- adresse_livraison: TEXT
+- created_at: TIMESTAMPTZ (DEFAULT: CURRENT_TIMESTAMP)
+- updated_at: TIMESTAMPTZ (DEFAULT: CURRENT_TIMESTAMP)
+
+### 5. lignes_commande
+- id_item: UUID (PK)
+- id_order: UUID (NOT NULL, FK → commandes.id_order)
+- id_product: UUID (NOT NULL, FK → produits.id_product)
+- quantite: INTEGER (NOT NULL) [CHECK: > 0]
+- prix_unitaire_fige: DECIMAL(10,2) (NOT NULL) [CHECK: >= 0]
+- created_at: TIMESTAMPTZ (DEFAULT: CURRENT_TIMESTAMP)
+
+### 6. transactions
+- id_transaction: UUID (PK)
+- id_order: UUID (NOT NULL, FK → commandes.id_order)
+- montant_paye: DECIMAL(12,2) (NOT NULL) [CHECK: >= 0]
+- methode_paiement: VARCHAR(50)
+- statut_transaction: VARCHAR(50) (NOT NULL) [CHECK: IN ('INITIEE', 'EN_ATTENTE', 'VALIDEE', 'ECHOUEE', 'REMBOURSEE')]
+- reference_externe: VARCHAR(255)
+- created_at: TIMESTAMPTZ (DEFAULT: CURRENT_TIMESTAMP)
+
+### 7. achats
+- id_purchase: UUID (PK)
+- id_fournisseur: UUID (NOT NULL, FK → utilisateurs.id_user)
+- statut: VARCHAR(50) (NOT NULL) [CHECK: IN ('EN_ATTENTE', 'VALIDEE', 'ANNULEE')]
+- montant_total: DECIMAL(12,2) (NOT NULL) [CHECK: >= 0]
+- created_at: TIMESTAMPTZ (DEFAULT: CURRENT_TIMESTAMP)
+- updated_at: TIMESTAMPTZ (DEFAULT: CURRENT_TIMESTAMP)
+
+### 8. lignes_achat
+- id_purchase_item: UUID (PK)
+- id_purchase: UUID (NOT NULL, FK → achats.id_purchase)
+- id_product: UUID (NOT NULL, FK → produits.id_product)
+- quantite: INTEGER (NOT NULL) [CHECK: > 0]
+- prix_unitaire: DECIMAL(10,2) (NOT NULL) [CHECK: >= 0]
+- created_at: TIMESTAMPTZ (DEFAULT: CURRENT_TIMESTAMP)
+
+### 9. operations_import_export
+- id_operation: UUID (PK)
+- id_order: UUID (NOT NULL, FK → commandes.id_order)
+- type_operation: VARCHAR(10) (NOT NULL) [CHECK: IN ('IMPORT', 'EXPORT')]
+- pays_origine: VARCHAR(100)
+- pays_destination: VARCHAR(100)
+- statut: VARCHAR(50) (NOT NULL) [CHECK: IN ('PREPARATION', 'EXPEDIEE', 'EN_TRANSIT', 'ARRIVEE', 'DOUANE', 'LIVREE', 'ANNULEE')]
+- date_depart: DATE
+- date_arrivee_prevue: DATE
+- created_at: TIMESTAMPTZ (DEFAULT: CURRENT_TIMESTAMP)
+- updated_at: TIMESTAMPTZ (DEFAULT: CURRENT_TIMESTAMP)
+
+### 10. expeditions
+- id_shipment: UUID (PK)
+- id_order: UUID (NOT NULL, FK → commandes.id_order)
+- transporteur_id: UUID (FK → utilisateurs.id_user, ON DELETE SET NULL)
+- numero_suivi: VARCHAR(100)
+- mode_transport: VARCHAR(50)
+- statut: VARCHAR(50) (NOT NULL) [CHECK: IN ('PREPARATION', 'EXPEDIEE', 'EN_TRANSIT', 'ARRIVEE', 'DOUANE', 'LIVREE', 'ANNULEE')]
+- date_expedition: TIMESTAMPTZ
+- date_livraison_estimee: TIMESTAMPTZ
+- date_livraison_reelle: TIMESTAMPTZ
+- created_at: TIMESTAMPTZ (DEFAULT: CURRENT_TIMESTAMP)
+- updated_at: TIMESTAMPTZ (DEFAULT: CURRENT_TIMESTAMP)
+
+### 11. documents
+- id_document: UUID (PK)
+- id_operation: UUID (FK → operations_import_export.id_operation, ON DELETE SET NULL)
+- id_order: UUID (FK → commandes.id_order, ON DELETE SET NULL)
+- type_document: VARCHAR(50) (NOT NULL) [CHECK: IN ('FACTURE_COMMERCIALE', 'PACKING_LIST', 'CERTIFICAT_ORIGINE', 'DOCUMENT_DOUANE', 'DOCUMENT_TRANSPORT', 'AUTRE')]
+- nom_fichier: VARCHAR(255)
+- chemin_fichier: VARCHAR(255)
+- statut: VARCHAR(50) (NOT NULL) [CHECK: IN ('ACTIF', 'ARCHIVE', 'SUPPRIME')]
+- created_at: TIMESTAMPTZ (DEFAULT: CURRENT_TIMESTAMP)
+- updated_at: TIMESTAMPTZ (DEFAULT: CURRENT_TIMESTAMP)
+
+### 12. factures
+- id_invoice: UUID (PK)
+- id_order: UUID (NOT NULL, FK → commandes.id_order)
+- numero_facture: VARCHAR(50) (NOT NULL, UNIQUE)
+- montant_ht: DECIMAL(12,2) (NOT NULL) [CHECK: >= 0]
+- montant_tva: DECIMAL(12,2) (NOT NULL) [CHECK: >= 0]
+- montant_ttc: DECIMAL(12,2) (NOT NULL) [CHECK: >= 0]
+- statut: VARCHAR(50) (NOT NULL) [CHECK: IN ('BROUILLON', 'ENVOYEE', 'PAYEE', 'ANNULEE')]
+- date_emission: DATE
+- date_echeance: DATE
+- created_at: TIMESTAMPTZ (DEFAULT: CURRENT_TIMESTAMP)
+
+## Clés Étrangères (Foreign Keys)
+
+1. produits.id_fournisseur → utilisateurs.id_user
+2. inventaire.id_product → produits.id_product
+3. commandes.id_client → utilisateurs.id_user
+4. lignes_commande.id_order → commandes.id_order
+5. lignes_commande.id_product → produits.id_product
+6. transactions.id_order → commandes.id_order
+7. achats.id_fournisseur → utilisateurs.id_user
+8. lignes_achat.id_purchase → achats.id_purchase
+9. lignes_achat.id_product → produits.id_product
+10. operations_import_export.id_order → commandes.id_order
+11. expeditions.id_order → commandes.id_order
+12. expeditions.transporteur_id → utilisateurs.id_user
+13. documents.id_operation → operations_import_export.id_operation
+14. documents.id_order → commandes.id_order
+15. factures.id_order → commandes.id_order
+
+## Contraintes
+
+### Contraintes de Clé Primaire (Primary Key Constraints)
+- Chaque table a une contrainte PRIMARY KEY sur sa colonne d'ID
+
+### Contraintes d'Unicité (Unique Constraints)
+- utilisateurs.email
+- inventaire.id_product (un seul enregistrement de stock par produit)
+- factures.numero_facture
+
+### Contraintes de Vérification (Check Constraints)
+- utilisateurs.role ∈ {'ADMIN', 'CLIENT', 'FOURNISSEUR', 'COMMERCANT', 'TRANSPORTEUR'}
+- produits.prix_detail >= 0
+- produits.prix_gros >= 0
+- inventaire.quantite_disponible >= 0
+- inventaire.seuil_alerte >= 0
+- commandes.montant_total >= 0
+- commandes.statut ∈ {'EN_ATTENTE', 'PAYEE', 'EN_PREPARATION', 'EXPEDIEE', 'LIVREE', 'ANNULEE'}
+- lignes_commande.quantite > 0
+- lignes_commande.prix_unitaire_fige >= 0
+- transactions.montant_paye >= 0
+- transactions.statut_transaction ∈ {'INITIEE', 'EN_ATTENTE', 'VALIDEE', 'ECHOUEE', 'REMBOURSEE'}
+- achats.montant_total >= 0
+- achats.statut ∈ {'EN_ATTENTE', 'VALIDEE', 'ANNULEE'}
+- lignes_achat.quantite > 0
+- lignes_achat.prix_unitaire >= 0
+- operations_import_export.type_operation ∈ {'IMPORT', 'EXPORT'}
+- operations_import_export.statut ∈ {'PREPARATION', 'EXPEDIEE', 'EN_TRANSIT', 'ARRIVEE', 'DOUANE', 'LIVREE', 'ANNULEE'}
+- expeditions.statut ∈ {'PREPARATION', 'EXPEDIEE', 'EN_TRANSIT', 'ARRIVEE', 'DOUANE', 'LIVREE', 'ANNULEE'}
+- documents.type_document ∈ {'FACTURE_COMMERCIALE', 'PACKING_LIST', 'CERTIFICAT_ORIGINE', 'DOCUMENT_DOUANE', 'DOCUMENT_TRANSPORT', 'AUTRE'}
+- documents.statut ∈ {'ACTIF', 'ARCHIVE', 'SUPPRIME'}
+- factures.montant_ht >= 0
+- factures.montant_tva >= 0
+- factures.montant_ttc >= 0
+- factures.statut ∈ {'BROUILLON', 'ENVOYEE', 'PAYEE', 'ANNULEE'}
+
+## Index
+
+### Index Implicites (déclarés par les PK/FK/Contraintes d'Unicité)
+1. utilisateurs_pkey - PK on utilisateurs(id_user)
+2. utilisateurs_email_key - UK on utilisateurs(email)
+3. produits_pkey - PK on produits(id_product)
+4. inventaire_pkey - PK on inventaire(id_stock)
+5. inventaire_id_product_key - UK on inventaire(id_product)
+6. commandes_pkey - PK on commandes(id_order)
+7. lignes_commande_pkey - PK on lignes_commande(id_item)
+8. transactions_pkey - PK on transactions(id_transaction)
+9. achats_pkey - PK on achats(id_purchase)
+10. lignes_achat_pkey - PK on lignes_achat(id_purchase_item)
+11. operations_import_export_pkey - PK on operations_import_export(id_operation)
+12. expeditions_pkey - PK on expeditions(id_shipment)
+13. documents_pkey - PK on documents(id_document)
+14. factures_pkey - PK on factures(id_invoice)
+15. factures_numero_facture_key - UK on factures(numero_facture)
+
+### Index des Clés Étrangères (créés automatiquement par PostgreSQL)
+16. fk_products_fournisseur_idx - on produits(id_fournisseur)
+17. fk_inventory_product_idx - on inventaire(id_product)
+18. fk_order_items_order_idx - on lignes_commande(id_order)
+19. fk_order_items_product_idx - on lignes_commande(id_product)
+20. fk_transactions_order_idx - on transactions(id_order)
+21. fk_purchases_fournisseur_idx - on achats(id_fournisseur)
+22. fk_purchase_items_purchase_idx - on lignes_achat(id_purchase)
+23. fk_purchase_items_product_idx - on lignes_achat(id_product)
+24. fk_import_export_order_idx - on operations_import_export(id_order)
+25. fk_shipments_order_idx - on expeditions(id_order)
+26. fk_shipments_transporteur_idx - on expeditions(transporteur_id)
+27. fk_documents_operation_idx - on documents(id_operation)
+28. fk_documents_order_idx - on documents(id_order)
+29. fk_invoices_order_idx - on factures(id_order)
+
+## Notes
+
+- Tous les IDs utilisent le type UUID avec génération par défaut via uuid_generate_v4()
+- Les timestamps utilisent le fuseau horaire (TIMESTAMPTZ)
+- Les contraintes d'intégrité référentielle utilisent principalement ON DELETE RESTRICT, sauf pour les relations optionnelles qui utilisent ON DELETE SET NULL
+- Le modèle supporte l'extensibilité grâce à l'utilisation de types génériques (VARCHAR, TEXT) pour les champs pouvant évoluer

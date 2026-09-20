@@ -1,0 +1,95 @@
+# NexTrade Modèle Conceptuel des Données (MCD)
+
+## Entités Principales
+
+1. **Utilisateur** (User)
+   - Attributs: id_user (PK), email, password_hash, role, nom_entreprise, telephone, created_at, updated_at
+   - Rôles: ADMIN, CLIENT, FOURNISSEUR, COMMERCANT, TRANSPORTEUR
+
+2. **Produit** (Product)
+   - Attributs: id_product (PK), id_fournisseur (FK), nom, description, categorie, prix_detail, prix_gros, created_at, updated_at
+
+3. **Stock** (Inventory)
+   - Attributs: id_stock (PK), id_product (FK), quantite_disponible, seuil_alerte, last_updated
+
+4. **Commande** (Order)
+   - Attributs: id_order (PK), id_client (FK), montant_total, statut, adresse_livraison, created_at, updated_at
+   - Statuts: EN_ATTENTE, PAYEE, EN_PREPARATION, EXPEDIEE, LIVREE, ANULEE
+
+5. **Ligne de Commande** (Order Item)
+   - Attributs: id_item (PK), id_order (FK), id_product (FK), quantite, prix_unitaire_fige, created_at
+
+6. **Transaction** (Transaction)
+   - Attributs: id_transaction (PK), id_order (FK), montant_paye, methode_paiement, statut_transaction, reference_externe, created_at
+   - Statuts: INITIEE, EN_ATTENTE, VALIDEE, ECHOUEE, REMBOURSEE
+
+7. **Achat** (Purchase)
+   - Attributs: id_purchase (PK), id_fournisseur (FK), statut, montant_total, created_at, updated_at
+   - Statuts: EN_ATTENTE, VALIDEE, ANULEE
+
+8. **Ligne d'Achat** (Purchase Item)
+   - Attributs: id_purchase_item (PK), id_purchase (FK), id_product (FK), quantite, prix_unitaire, created_at
+
+9. **Opération Import/Export** (Import/Export Operation)
+   - Attributs: id_operation (PK), id_order (FK), type_operation, pays_origine, pays_destination, statut, date_depart, date_arrivee_prevue, created_at, updated_at
+   - Types: IMPORT, EXPORT
+   - Statuts: PREPARATION, EXPEDIEE, EN_TRANSIT, ARRIVEE, DOUANE, LIVREE, ANULEE
+
+10. **Expédition** (Shipment)
+    - Attributs: id_shipment (PK), id_order (FK), transporteur_id (FK), numero_suivi, mode_transport, statut, date_expedition, date_livraison_estimee, date_livraison_reelle, created_at, updated_at
+    - Statuts: PREPARATION, EXPEDIEE, EN_TRANSIT, ARRIVEE, DOUANE, LIVREE, ANULEE
+
+11. **Document** (Document)
+    - Attributs: id_document (PK), id_operation (FK), id_order (FK), type_document, nom_fichier, chemin_fichier, statut, created_at, updated_at
+    - Types: FACTURE_COMMERCIALE, PACKING_LIST, CERTIFICAT_ORIGINE, DOCUMENT_DOUANE, DOCUMENT_TRANSPORT, AUTRE
+    - Statuts: ACTIF, ARCHIVE, SUPPRIME
+
+12. **Facture** (Invoice)
+    - Attributs: id_invoice (PK), id_order (FK), numero_facture, montant_ht, montant_tva, montant_ttc, statut, date_emission, date_echeance, created_at
+    - Statuts: BROUILLON, ENVOYEE, PAYEE, ANULEE
+
+## Relations
+
+### Associations
+
+1. **Utilisateur --< Produit** : Un utilisateur (fournisseur) peut proposer plusieurs produits
+2. **Utilisateur --< Commande** : Un utilisateur (client) peut passer plusieurs commandes
+3. **Produit --< Ligne de Commande** : Un produit peut apparaître dans plusieurs lignes de commande
+4. **Commande --< Ligne de Commande** : Une commande contient plusieurs lignes de commande
+5. **Commande --< Transaction** : Une commande peut avoir plusieurs transactions de paiement
+6. **Commande --< Expédition** : Une commande peut avoir plusieurs expéditions
+7. **Commande --< Document** : Une commande peut avoir plusieurs documents associés
+8. **Commande --< Opération Import/Export** : Une commande peut être associée à plusieurs opérations import/export
+9. **Commande --< Facture** : Une commande peut avoir plusieurs factures
+10. **Utilisateur --< Expédition** : Un utilisateur (transporteur) peut effectuer plusieurs expéditions (optionnel)
+11. **Produit --< Stock** : Un produit a exactement un enregistrement de stock
+12. **Produit --< Ligne d'Achat** : Un produit peut apparaître dans plusieurs lignes d'achat
+13. **Achat --< Ligne d'Achat** : Un achat contient plusieurs lignes d'achat
+14. **Utilisateur --< Achat** : Un utilisateur (fournisseur) peut effectuer plusieurs achats
+15. **Opération Import/Export --< Document** : Une opération import/export peut avoir plusieurs documents associés
+16. **Opération Import/Export --< Commande** : Une opération import/export est associée à une commande
+
+## Cardinalités
+
+- Utilisateur (1) -- (N) Produit (en tant que fournisseur)
+- Utilisateur (1) -- (N) Commande (en tant que client)
+- Produit (1) -- (N) Ligne de Commande
+- Commande (1) -- (N) Ligne de Commande
+- Commande (1) -- (N) Transaction
+- Commande (1) -- (N) Expédition
+- Commande (1) -- (N) Document
+- Commande (1) -- (N) Opération Import/Export
+- Commande (1) -- (N) Facture
+- Utilisateur (0,1) -- (N) Expédition (en tant que transporteur)
+- Produit (1) -- (1) Stock
+- Produit (1) -- (N) Ligne d'Achat
+- Achat (1) -- (N) Ligne d'Achat
+- Utilisateur (1) -- (N) Achat (en tant que fournisseur)
+- Opération Import/Export (1) -- (N) Document
+- Opération Import/Export (1) -- (1) Commande
+
+## Notes
+
+- Les clés étrangères garantissent l'intégrité référentielle
+- Les contraintes de vérification assurent la validité des données (statuts, valeurs positives, etc.)
+- Les contraintes d'unicité empêchent les doublons (email utilisateur, numéro de facture, etc.)

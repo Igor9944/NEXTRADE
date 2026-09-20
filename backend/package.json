@@ -12,5 +12,9 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs"
+  "type": "commonjs",
+  "devDependencies": {
+    "pg": "^8.23.0",
+    "umzug": "^3.8.3"
+  }
 }

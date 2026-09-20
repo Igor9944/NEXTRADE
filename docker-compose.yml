@@ -11,7 +11,7 @@ services:
       POSTGRES_USER: nextrade
       POSTGRES_PASSWORD: nextrade_password  # Change in .env
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     ports:
       - "5432:5432"
 
