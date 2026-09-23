@@ -14,7 +14,7 @@ export class UserRepository {
    */
   async findByEmail(email: string): Promise<User | null> {
     const result = await this.pool.query(
-      'SELECT id_user, email, password_hash, role, nom_entreprise, telephone, created_at, updated_at FROM users WHERE email = $1',
+      'SELECT id_user, email, password_hash, role, nom_entreprise, telephone, nom, prenom, adresse, ville, pays, created_at, updated_at FROM users WHERE email = $1',
       [email]
     );
     
@@ -32,7 +32,7 @@ export class UserRepository {
    */
   async findById(id: string): Promise<User | null> {
     const result = await this.pool.query(
-      'SELECT id_user, email, password_hash, role, nom_entreprise, telephone, created_at, updated_at FROM users WHERE id_user = $1',
+      'SELECT id_user, email, password_hash, role, nom_entreprise, telephone, nom, prenom, adresse, ville, pays, created_at, updated_at FROM users WHERE id_user = $1',
       [id]
     );
     
@@ -50,18 +50,146 @@ export class UserRepository {
    */
   async create(userData: Omit<User, 'id_user' | 'created_at' | 'updated_at'>): Promise<User> {
     const result = await this.pool.query(
-      `INSERT INTO users (email, password_hash, role, nom_entreprise, telephone) 
-       VALUES ($1, $2, $3, $4, $5) 
-       RETURNING id_user, email, password_hash, role, nom_entreprise, telephone, created_at, updated_at`,
+      `INSERT INTO users (email, password_hash, role, nom_entreprise, telephone, nom, prenom, adresse, ville, pays) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+       RETURNING id_user, email, password_hash, role, nom_entreprise, telephone, nom, prenom, adresse, ville, pays, created_at, updated_at`,
       [
         userData.email,
         userData.password_hash,
         userData.role,
         userData.nom_entreprise,
-        userData.telephone
+        userData.telephone,
+        userData.nom,
+        userData.prenom,
+        userData.adresse,
+        userData.ville,
+        userData.pays
       ]
     );
     
     return result.rows[0];
+  }
+
+  /**
+   * Update user by ID
+   * @param id - User ID
+   * @param userData - User data to update
+   * @returns Updated user object or null if not found
+   */
+  async updateById(id: string, userData: Partial<Omit<User, 'id_user' | 'created_at' | 'updated_at'>>): Promise<User | null> {
+    // Build dynamic update query
+    const fields: string[] = [];
+    const values: any[] = [];
+    let index = 1;
+
+    // List of updatable fields (excluding immutable ones)
+    const updatableFields = [
+      'email', 'password_hash', 'role', 'nom_entreprise', 'telephone',
+      'nom', 'prenom', 'adresse', 'ville', 'pays'
+    ] as const;
+
+    updatableFields.forEach(field => {
+      if (userData[field] !== undefined) {
+        fields.push(`${field} = $${index++}`);
+        values.push(userData[field]);
+      }
+    });
+
+    if (fields.length === 0) {
+      // No fields to update
+      return await this.findById(id);
+    }
+
+    values.push(id); // for WHERE clause
+
+    const result = await this.pool.query(
+      `UPDATE users SET ${fields.join(', ')} WHERE id_user = $${index}
+       RETURNING id_user, email, password_hash, role, nom_entreprise, telephone, nom, prenom, adresse, ville, pays, created_at, updated_at`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    return result.rows[0];
+  }
+
+  /**
+   * Delete user by ID
+   * @param id - User ID
+   * @returns True if deleted, false if not found
+   */
+  async deleteById(id: string): Promise<boolean> {
+    const result = await this.pool.query(
+      'DELETE FROM users WHERE id_user = $1 RETURNING id_user',
+      [id]
+    );
+    
+    return result.rows.length > 0;
+  }
+
+  /**
+   * Find users by role with pagination and search
+   * @param role - User role to filter by (optional, if not provided returns all users)
+   * @param page - Page number (default: 1)
+   * @param limit - Items per page (default: 10)
+   * @param search - Search term for nom, prenom, email
+   * @returns Paginated list of users
+   */
+  async findByRole(role: string | null = null, page: number = 1, limit: number = 10, search: string = ''): Promise<{ users: User[]; total: number; page: number; limit: number; totalPages: number }> {
+    // Build WHERE conditions
+    const whereConditions: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    // Add search condition if provided
+    if (search.trim() !== '') {
+      whereConditions.push(`(nom ILIKE $${paramIndex++} OR prenom ILIKE $${paramIndex++} OR email ILIKE $${paramIndex++})`);
+      const searchTerm = `%${search}%`;
+      values.push(searchTerm, searchTerm, searchTerm);
+    }
+
+    // Add role condition if provided
+    if (role !== null) {
+      whereConditions.push(`role = $${paramIndex++}`);
+      values.push(role);
+    }
+
+    // Build WHERE clause
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+    // Count total records
+    const countResult = await this.pool.query(
+      `SELECT COUNT(*) as total FROM users ${whereClause}`,
+      [...values]
+    );
+    const total = parseInt(countResult.rows[0].total);
+    const totalPages = Math.ceil(total / limit);
+
+    // Ensure page is within bounds
+    const safePage = Math.max(1, Math.min(page, totalPages || 1));
+    const offset = (safePage - 1) * limit;
+
+    // Get paginated records
+    const result = await this.pool.query(
+      `SELECT id_user, email, password_hash, role, nom_entreprise, telephone, nom, prenom, adresse, ville, pays, created_at, updated_at
+       FROM users ${whereClause}
+       ORDER BY created_at DESC
+       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      [
+        ...values,
+        limit,
+        offset
+      ]
+    );
+
+    return {
+      users: result.rows,
+      total,
+      page: safePage,
+      limit,
+      totalPages
+    };
   }
 }

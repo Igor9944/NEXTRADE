@@ -3,10 +3,11 @@ import { Pool } from 'pg';
 import { UserRepository } from '../src/repositories/userRepository';
 import { AuthService } from '../src/services/authService';
 import { AuthController } from '../src/controllers/authController';
-import express, { Application } from 'express';
+import express, { Application, Request, Response, NextFunction } from 'express';
 import { createAuthRoutes } from '../src/routes/authRoutes';
 import testProtectedRoutes from '../src/routes/testProtectedRoutes';
 import { authMiddleware } from '../src/middlewares/authMiddleware';
+import { errorMiddleware } from '../src/middlewares/errorMiddleware';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -24,7 +25,12 @@ describe('Authentication System', () => {
     password: 'TestPass123!',
     role: 'CLIENT' as const,
     nom_entreprise: 'Test Company',
-    telephone: '+22890000000'
+    telephone: '+22890000000',
+    nom: 'TestNom',
+    prenom: 'TestPrenom',
+    adresse: 'Test Address',
+    ville: 'Test City',
+    pays: 'Test Country'
   };
 
   beforeAll(async () => {
@@ -46,10 +52,17 @@ describe('Authentication System', () => {
     app = express();
     app.use(express.json());
 
+    // Make db available to all routes and middleware (like in src/app.ts)
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      (req as any).db = pool;
+      next();
+    });
+
     // Setup routes
     const authRouter = createAuthRoutes(authController);
     app.use('/api/v1/auth', authRouter);
     app.use('/api/v1/test', authMiddleware, testProtectedRoutes);
+    app.use(errorMiddleware);
 
     // Clean up test user if exists
     await pool.query('DELETE FROM users WHERE email = $1', [TEST_USER.email]);
@@ -63,11 +76,14 @@ describe('Authentication System', () => {
 
   describe('POST /api/v1/auth/register', () => {
     it('should register a new user successfully', async () => {
+      console.log('[REGISTER SUCCESS TEST] About to make registration request');
       const response = await request(app)
         .post('/api/v1/auth/register')
-        .send(TEST_USER)
-        .expect(201);
+        .send(TEST_USER);
 
+      console.log('[REGISTER SUCCESS TEST] Registration response:', response.status, response.body);
+
+      expect(response.status).toBe(201);
       expect(response.body).toHaveProperty('message', 'Registration successful');
       expect(response.body).toHaveProperty('accessToken');
       expect(response.body.user).toHaveProperty('email', TEST_USER.email);
@@ -78,16 +94,20 @@ describe('Authentication System', () => {
 
     it('should return 409 for duplicate email', async () => {
       // First registration
-      await request(app)
+      const firstResponse = await request(app)
         .post('/api/v1/auth/register')
         .send(TEST_USER);
+
+      console.log('First registration response:', firstResponse.status, firstResponse.body);
 
       // Second registration with same email
       const response = await request(app)
         .post('/api/v1/auth/register')
-        .send(TEST_USER)
-        .expect(409);
+        .send(TEST_USER);
 
+      console.log('Second registration response:', response.status, response.body);
+
+      expect(response.status).toBe(409);
       expect(response.body).toHaveProperty('message', 'Email already exists');
     });
   });
@@ -120,14 +140,24 @@ describe('Authentication System', () => {
     });
 
     it('should return 401 for invalid credentials', async () => {
+      // Ensure test user exists
+      const registerResponse = await request(app)
+        .post('/api/v1/auth/register')
+        .send(TEST_USER);
+
+      console.log('Register response for login test:', registerResponse.status, registerResponse.body);
+
+      // Second registration with same email
       const response = await request(app)
         .post('/api/v1/auth/login')
         .send({
           email: TEST_USER.email,
           password: 'WrongPassword123!'
-        })
-        .expect(401);
+        });
 
+      console.log('Login with wrong password response:', response.status, response.body);
+
+      expect(response.status).toBe(401);
       expect(response.body).toHaveProperty('message', 'Invalid credentials');
     });
   });

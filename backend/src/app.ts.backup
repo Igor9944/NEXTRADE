@@ -40,7 +40,7 @@ app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({
     status: 'success',
     message: 'API NexTrade opérationnelle'
-  });
+  );
 });
 
 // Import components
@@ -53,10 +53,7 @@ import { SupplierController } from './controllers/supplierController';
 import { SupplierService } from './services/supplierService';
 import { SupplierRepository } from './repositories/supplierRepository';
 import { ProfileController } from './controllers/profileController';
-import { ClientController } from './controllers/clientController';
-import { createSupplierRoutes } from './routes/supplierRoutes';
-import { createProfileRoutes } from './routes/profileRoutes';
-import { createClientRoutes } from './routes/clientRoutes';
+import { ClientController } from '../controllers/clientController';
 
 // Initialize services and controllers
 const userRepository = new UserRepository(pool);
@@ -92,7 +89,7 @@ app.use((req: Request, res: Response) => {
   res.status(404).json({
     status: 'error',
     message: 'Route not found'
-  });
+  );
 });
 
 // Error handler

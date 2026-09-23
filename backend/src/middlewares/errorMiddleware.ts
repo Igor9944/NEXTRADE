@@ -35,8 +35,12 @@ export const errorMiddleware = (
   }
 
   // Default error response
+  console.error('Unhandled error in errorMiddleware:', error); // TEMPORARY DEBUG
+  // Return more specific error info for debugging
+  const errorMessage = error && error.message ? error.message : 'Unknown error';
   res.status(500).json({
     status: 'error',
-    message: 'Something went wrong!'
+    message: 'Something went wrong!',
+    error: errorMessage // TEMPORARY: include error message in response
   });
 };

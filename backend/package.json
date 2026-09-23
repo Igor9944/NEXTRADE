@@ -15,18 +15,19 @@
   "type": "commonjs",
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
-    "@types/jest": "^29.5.12",
-    "@types/jsonwebtoken": "^9.0.6",
-    "@types/supertest": "^2.0.12",
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/helmet": "^0.0.48",
+    "@types/jest": "^29.5.12",
+    "@types/jsonwebtoken": "^9.0.6",
     "@types/node": "^26.6.2",
     "@types/pg": "^8.23.1",
+    "@types/supertest": "^2.0.12",
     "jest": "^29.7.0",
     "supertest": "^6.3.4",
     "ts-jest": "^29.1.2",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^7.0.2",
+    "typescript": "^6.0.3",
     "umzug": "^3.8.3"
   },
   "dependencies": {
@@ -50,6 +51,10 @@
     ],
     "collectCoverage": true,
     "coverageDirectory": "coverage",
-    "coverageReporters": ["text", "lcov", "html"]
+    "coverageReporters": [
+      "text",
+      "lcov",
+      "html"
+    ]
   }
 }
