@@ -57,6 +57,14 @@ import { ClientController } from './controllers/clientController';
 import { createSupplierRoutes } from './routes/supplierRoutes';
 import { createProfileRoutes } from './routes/profileRoutes';
 import { createClientRoutes } from './routes/clientRoutes';
+import { createCategoryRoutes } from './routes/categoryRoutes';
+import { createProductRoutes } from './routes/productRoutes';
+import { CategoryController } from './controllers/categoryController';
+import { CategoryService } from './services/categoryService';
+import { CategoryRepository } from './repositories/categoryRepository';
+import { ProductController } from './controllers/productController';
+import { ProductService } from './services/productService';
+import { ProductRepository } from './repositories/productRepository';
 
 // Initialize services and controllers
 const userRepository = new UserRepository(pool);
@@ -67,6 +75,12 @@ const supplierService = new SupplierService(supplierRepository);
 const supplierController = new SupplierController(supplierService);
 const profileController = new ProfileController(userRepository);
 const clientController = new ClientController(userRepository);
+const categoryRepository = new CategoryRepository(pool);
+const categoryService = new CategoryService(categoryRepository);
+const categoryController = new CategoryController(categoryService);
+const productRepository = new ProductRepository(pool);
+const productService = new ProductService(productRepository, categoryRepository);
+const productController = new ProductController(productService);
 
 // Setup routes
 const authRouter = createAuthRoutes(authController);
@@ -83,6 +97,12 @@ app.use('/api/v1/profile', profileRouter);
 // Client routes
 const clientRouter = createClientRoutes(clientController);
 app.use('/api/v1/clients', clientRouter);
+
+// Catalogue routes
+const categoryRouter = createCategoryRoutes(categoryController);
+app.use('/api/v1/categories', categoryRouter);
+const productRouter = createProductRoutes(productController);
+app.use('/api/v1/products', productRouter);
 
 // Test protected routes
 app.use('/api/v1/test', authMiddleware, testProtectedRoutes);

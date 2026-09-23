@@ -19,6 +19,7 @@ describe('Authentication System', () => {
   let userRepository: UserRepository;
   let authService: AuthService;
   let authController: AuthController;
+  let accessToken: string;  // Moved to outer scope
 
   const TEST_USER = {
     email: 'test@nextrade.test',
@@ -86,6 +87,7 @@ describe('Authentication System', () => {
       expect(response.status).toBe(201);
       expect(response.body).toHaveProperty('message', 'Registration successful');
       expect(response.body).toHaveProperty('accessToken');
+      expect(response.body).toHaveProperty('user');
       expect(response.body.user).toHaveProperty('email', TEST_USER.email);
       expect(response.body.user).toHaveProperty('role', TEST_USER.role);
       expect(response.body.user).not.toHaveProperty('password');
@@ -113,7 +115,7 @@ describe('Authentication System', () => {
   });
 
   describe('POST /api/v1/auth/login', () => {
-    let accessToken: string;
+    // Removed: let accessToken: string;
 
     beforeAll(async () => {
       // Ensure test user exists
@@ -133,6 +135,7 @@ describe('Authentication System', () => {
 
       expect(response.body).toHaveProperty('message', 'Login successful');
       expect(response.body).toHaveProperty('accessToken');
+      expect(response.body).toHaveProperty('user');
       expect(response.body.user).toHaveProperty('email', TEST_USER.email);
 
       // Save token for later tests
@@ -163,7 +166,7 @@ describe('Authentication System', () => {
   });
 
   describe('GET /api/v1/test/protected', () => {
-    let accessToken: string;
+    // Removed: let accessToken: string;
 
     beforeAll(async () => {
       // Login to get token
@@ -185,6 +188,7 @@ describe('Authentication System', () => {
 
       expect(response.body).toHaveProperty('status', 'success');
       expect(response.body).toHaveProperty('message', 'Access granted to protected route');
+      expect(response.body).toHaveProperty('user');
       expect(response.body.user).toHaveProperty('email', TEST_USER.email);
     });
 
@@ -205,6 +209,4 @@ describe('Authentication System', () => {
       expect(response.body).toHaveProperty('message', 'Invalid or expired token');
     });
   });
-
-  // Additional tests for role-based access would go here
 });
