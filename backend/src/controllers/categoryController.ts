@@ -7,8 +7,8 @@ export class CategoryController {
 
   createCategory = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      if (!req.user || req.user.role !== 'ADMIN') {
-        return res.status(403).json({ status: 'error', message: 'Only admins can create categories' });
+      if (!req.user || (req.user.role !== 'ADMIN' && req.user.role !== 'FOURNISSEUR')) {
+        return res.status(403).json({ status: 'error', message: 'Only admins and suppliers can create categories' });
       }
 
       const category = await this.categoryService.createCategory(req.body || {});

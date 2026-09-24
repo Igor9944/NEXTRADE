@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS inventory (
     CONSTRAINT fk_inventory_product
         FOREIGN KEY (id_product)
         REFERENCES products(id_product)
-        ON DELETE RESTRICT
+        ON DELETE CASCADE
 );
 
 -- Trigger to update last_updated column

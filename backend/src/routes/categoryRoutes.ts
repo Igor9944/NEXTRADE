@@ -11,7 +11,7 @@ import { CategoryController } from '../controllers/categoryController';
 export const createCategoryRoutes = (categoryController: CategoryController) => {
   const router = Router();
 
-  router.post('/', authMiddleware, requireRole('ADMIN'), categoryController.createCategory);
+  router.post('/', authMiddleware, requireRole('ADMIN', 'FOURNISSEUR'), categoryController.createCategory);
   router.get('/', categoryController.listCategories);
 
   return router;

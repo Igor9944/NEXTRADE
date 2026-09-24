@@ -153,6 +153,39 @@ export class ProductRepository {
     };
   }
 
+  async getAvailableStock(productId: string): Promise<number> {
+    const result = await this.pool.query(
+      'SELECT quantite_disponible FROM inventory WHERE id_product = $1',
+      [productId]
+    );
+
+    return result.rows.length > 0 ? Number(result.rows[0].quantite_disponible) : 0;
+  }
+
+  async decrementStock(productId: string, quantity: number): Promise<number> {
+    const result = await this.pool.query(
+      `UPDATE inventory
+       SET quantite_disponible = quantite_disponible - $1, last_updated = NOW()
+       WHERE id_product = $2
+       RETURNING quantite_disponible`,
+      [quantity, productId]
+    );
+
+    return Number(result.rows[0]?.quantite_disponible ?? 0);
+  }
+
+  async incrementStock(productId: string, quantity: number): Promise<number> {
+    const result = await this.pool.query(
+      `UPDATE inventory
+       SET quantite_disponible = quantite_disponible + $1, last_updated = NOW()
+       WHERE id_product = $2
+       RETURNING quantite_disponible`,
+      [quantity, productId]
+    );
+
+    return Number(result.rows[0]?.quantite_disponible ?? 0);
+  }
+
   async findCatalog(filters: ProductCatalogQuery = {}): Promise<{ products: ProductWithCategories[]; total: number; page: number; limit: number; totalPages: number }> {
     const profile = (filters.profile || 'CLIENT').toUpperCase();
     const search = (filters.search || '').trim();

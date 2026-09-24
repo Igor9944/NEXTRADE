@@ -59,12 +59,20 @@ import { createProfileRoutes } from './routes/profileRoutes';
 import { createClientRoutes } from './routes/clientRoutes';
 import { createCategoryRoutes } from './routes/categoryRoutes';
 import { createProductRoutes } from './routes/productRoutes';
+import { createCartRoutes } from './routes/cartRoutes';
+import { createOrderRoutes } from './routes/orderRoutes';
 import { CategoryController } from './controllers/categoryController';
 import { CategoryService } from './services/categoryService';
 import { CategoryRepository } from './repositories/categoryRepository';
 import { ProductController } from './controllers/productController';
 import { ProductService } from './services/productService';
 import { ProductRepository } from './repositories/productRepository';
+import { CartController } from './controllers/cartController';
+import { CartService } from './services/cartService';
+import { CartRepository } from './repositories/cartRepository';
+import { OrderController } from './controllers/orderController';
+import { OrderService } from './services/orderService';
+import { OrderRepository } from './repositories/orderRepository';
 
 // Initialize services and controllers
 const userRepository = new UserRepository(pool);
@@ -81,6 +89,12 @@ const categoryController = new CategoryController(categoryService);
 const productRepository = new ProductRepository(pool);
 const productService = new ProductService(productRepository, categoryRepository);
 const productController = new ProductController(productService);
+const cartRepository = new CartRepository(pool);
+const cartService = new CartService(cartRepository, productRepository, productService.getProductById.bind(productService));
+const cartController = new CartController(cartService);
+const orderRepository = new OrderRepository(pool);
+const orderService = new OrderService(orderRepository, cartRepository, productRepository, userRepository);
+const orderController = new OrderController(orderService);
 
 // Setup routes
 const authRouter = createAuthRoutes(authController);
@@ -103,6 +117,12 @@ const categoryRouter = createCategoryRoutes(categoryController);
 app.use('/api/v1/categories', categoryRouter);
 const productRouter = createProductRoutes(productController);
 app.use('/api/v1/products', productRouter);
+
+// Cart and order routes
+const cartRouter = createCartRoutes(cartController);
+app.use('/api/v1/cart', authMiddleware, cartRouter);
+const orderRouter = createOrderRoutes(orderController);
+app.use('/api/v1/orders', authMiddleware, orderRouter);
 
 // Test protected routes
 app.use('/api/v1/test', authMiddleware, testProtectedRoutes);
