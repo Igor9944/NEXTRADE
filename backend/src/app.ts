@@ -61,6 +61,7 @@ import { createCategoryRoutes } from './routes/categoryRoutes';
 import { createProductRoutes } from './routes/productRoutes';
 import { createCartRoutes } from './routes/cartRoutes';
 import { createOrderRoutes } from './routes/orderRoutes';
+import { createImportExportRoutes } from './routes/importExportRoutes';
 import { CategoryController } from './controllers/categoryController';
 import { CategoryService } from './services/categoryService';
 import { CategoryRepository } from './repositories/categoryRepository';
@@ -123,6 +124,10 @@ const cartRouter = createCartRoutes(cartController);
 app.use('/api/v1/cart', authMiddleware, cartRouter);
 const orderRouter = createOrderRoutes(orderController);
 app.use('/api/v1/orders', authMiddleware, orderRouter);
+
+// Import-Export routes
+const importExportRouter = createImportExportRoutes(pool);
+app.use('/api/v1/import-export', importExportRouter);
 
 // Test protected routes
 app.use('/api/v1/test', authMiddleware, testProtectedRoutes);
