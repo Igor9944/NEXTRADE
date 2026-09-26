@@ -19,14 +19,15 @@ export const pool = new Pool({
 const app: Application = express();
 
 // Middleware
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
 app.use(cors());
 app.use(express.json());
 
 // Import custom middleware
 import { errorMiddleware } from './middlewares/errorMiddleware';
 import { authMiddleware } from './middlewares/authMiddleware';
-import { requireRole } from './middlewares/roleMiddleware';
 
 // Make db available to all routes and middleware
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -61,6 +62,7 @@ import { createCategoryRoutes } from './routes/categoryRoutes';
 import { createProductRoutes } from './routes/productRoutes';
 import { createCartRoutes } from './routes/cartRoutes';
 import { createOrderRoutes } from './routes/orderRoutes';
+import { createShipmentRoutes } from './routes/shipmentRoutes';
 import { createImportExportRoutes } from './routes/importExportRoutes';
 import { CategoryController } from './controllers/categoryController';
 import { CategoryService } from './services/categoryService';
@@ -74,6 +76,9 @@ import { CartRepository } from './repositories/cartRepository';
 import { OrderController } from './controllers/orderController';
 import { OrderService } from './services/orderService';
 import { OrderRepository } from './repositories/orderRepository';
+import { ShipmentController } from './controllers/shipmentController';
+import { ShipmentService } from './services/shipmentService';
+import { ShipmentRepository } from './repositories/shipmentRepository';
 
 // Initialize services and controllers
 const userRepository = new UserRepository(pool);
@@ -96,6 +101,9 @@ const cartController = new CartController(cartService);
 const orderRepository = new OrderRepository(pool);
 const orderService = new OrderService(orderRepository, cartRepository, productRepository, userRepository);
 const orderController = new OrderController(orderService);
+const shipmentRepository = new ShipmentRepository(pool);
+const shipmentService = new ShipmentService(pool, shipmentRepository, orderRepository, userRepository);
+const shipmentController = new ShipmentController(shipmentService);
 
 // Setup routes
 const authRouter = createAuthRoutes(authController);
@@ -124,6 +132,9 @@ const cartRouter = createCartRoutes(cartController);
 app.use('/api/v1/cart', authMiddleware, cartRouter);
 const orderRouter = createOrderRoutes(orderController);
 app.use('/api/v1/orders', authMiddleware, orderRouter);
+
+const shipmentRouter = createShipmentRoutes(shipmentController);
+app.use('/api/v1/shipments', authMiddleware, shipmentRouter);
 
 // Import-Export routes
 const importExportRouter = createImportExportRoutes(pool);

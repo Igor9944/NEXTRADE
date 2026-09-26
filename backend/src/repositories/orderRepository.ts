@@ -1,8 +1,14 @@
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 import { OrderRecord, OrderItemRecord, OrderStatus } from '../types/order';
+
+type Queryable = Pool | PoolClient;
 
 export class OrderRepository {
   constructor(private pool: Pool) {}
+
+  private db(client?: Queryable): Queryable {
+    return client ?? this.pool;
+  }
 
   async createOrder(data: {
     id_client: string;
@@ -41,8 +47,8 @@ export class OrderRepository {
     return result.rows;
   }
 
-  async getById(id_order: string): Promise<OrderRecord | null> {
-    const result = await this.pool.query(
+  async getById(id_order: string, client?: Queryable): Promise<OrderRecord | null> {
+    const result = await this.db(client).query(
       `SELECT id_order, id_client, montant_total, statut, adresse_livraison, created_at, updated_at
        FROM orders WHERE id_order = $1`,
       [id_order]
@@ -68,8 +74,8 @@ export class OrderRepository {
     return result.rows;
   }
 
-  async updateStatus(id_order: string, statut: OrderStatus): Promise<OrderRecord | null> {
-    const result = await this.pool.query(
+  async updateStatus(id_order: string, statut: OrderStatus, client?: Queryable): Promise<OrderRecord | null> {
+    const result = await this.db(client).query(
       `UPDATE orders SET statut = $1, updated_at = NOW()
        WHERE id_order = $2
        RETURNING id_order, id_client, montant_total, statut, adresse_livraison, created_at, updated_at`,
@@ -78,8 +84,8 @@ export class OrderRepository {
     return result.rows[0] || null;
   }
 
-  async addStatusHistory(id_order: string, statut: string): Promise<void> {
-    await this.pool.query(
+  async addStatusHistory(id_order: string, statut: string, client?: Queryable): Promise<void> {
+    await this.db(client).query(
       'INSERT INTO order_status_history (id_order, statut) VALUES ($1, $2)',
       [id_order, statut]
     );
