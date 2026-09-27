@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { AppError } from '../utils/appError';
 
 /**
  * Error handling middleware
@@ -10,6 +11,21 @@ export const errorMiddleware = (
   next: NextFunction
 ) => {
   console.error('Error:', error.message); // Only log the message, not the full error object for security
+
+  if (error instanceof AppError) {
+    return res.status(error.statusCode).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+
+  if (error && error.name === 'MulterError') {
+    const status = error.code === 'LIMIT_FILE_SIZE' ? 400 : 400;
+    return res.status(status).json({
+      status: 'error',
+      message: error.code === 'LIMIT_FILE_SIZE' ? 'File too large' : 'Upload failed'
+    });
+  }
 
   // Handle specific error types
   if (error.message === 'Email already exists') {

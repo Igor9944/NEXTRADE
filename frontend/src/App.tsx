@@ -9,6 +9,10 @@ import TransporterListPage from './pages/shipments/TransporterListPage';
 import AdminListPage from './pages/shipments/AdminListPage';
 import AdminCreatePage from './pages/shipments/AdminCreatePage';
 import ShipmentDetailPage from './pages/shipments/ShipmentDetailPage';
+import DocumentsListPage from './pages/documents/ListPage';
+import DocumentDetailPage from './pages/documents/DetailPage';
+import DossierPage from './pages/documents/DossierPage';
+import InvoiceDetailPage from './pages/invoices/DetailPage';
 import { clearSession, getSessionUser } from './auth/session';
 
 function Layout({ children }: { children: React.ReactNode }) {
@@ -25,6 +29,7 @@ function Layout({ children }: { children: React.ReactNode }) {
             {user?.role === 'ADMIN' && <Link to="/shipments" className="text-blue-700">Expéditions</Link>}
             {user?.role === 'CLIENT' && <Link to="/shipments/my" className="text-blue-700">Suivi</Link>}
             {user?.role === 'TRANSPORTEUR' && <Link to="/shipments/assigned" className="text-blue-700">Mes tournées</Link>}
+            {user && <Link to="/documents" className="text-blue-700">Documents</Link>}
             {user ? (
               <button
                 className="text-gray-600"
@@ -64,6 +69,10 @@ function App() {
           <Route path="/shipments/my" element={<ClientTrackingPage />} />
           <Route path="/shipments/assigned" element={<TransporterListPage />} />
           <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+          <Route path="/documents" element={<DocumentsListPage />} />
+          <Route path="/documents/dossier/:orderId" element={<DossierPage />} />
+          <Route path="/documents/:id" element={<DocumentDetailPage />} />
+          <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
         </Routes>
       </Layout>
     </BrowserRouter>

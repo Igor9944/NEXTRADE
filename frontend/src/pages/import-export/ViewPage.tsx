@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { ImportExportService } from '../../services/importExportService';
+import { documentService } from '../../services/documentService';
+import { getSessionUser } from '../../auth/session';
 import {
   ImportExportOperationWithDetails,
   ImportExportOperationType,
@@ -8,6 +10,7 @@ import {
   TransportMode,
   CustomsFormalityStatus,
 } from '../../types/importExport';
+import { TradeDocument } from '../../types/document';
 
 const importExportService = new ImportExportService();
 
@@ -18,6 +21,8 @@ const ViewPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [newStatus, setNewStatus] = useState<ImportExportOperationStatus | ''>('');
+  const [docs, setDocs] = useState<TradeDocument[]>([]);
+  const user = getSessionUser();
 
   useEffect(() => {
     if (id) {
@@ -32,6 +37,12 @@ const ViewPage: React.FC = () => {
     try {
       const result = await importExportService.getOperationById(id);
       setOperation(result);
+      try {
+        const files = await documentService.listOperationDocuments(id);
+        setDocs(files.data.documents);
+      } catch {
+        setDocs([]);
+      }
     } catch (err: any) {
       setError(err.message || 'An error occurred while fetching the operation');
     } finally {
@@ -280,6 +291,22 @@ const ViewPage: React.FC = () => {
                         >
                           {formality.statut}
                         </span>
+                        {user?.role === 'ADMIN' && formality.statut !== 'TERMINE' && (
+                          <button
+                            className="ml-2 text-blue-700 underline"
+                            onClick={async () => {
+                              const next = formality.statut === 'A_FAIRE' ? 'EN_COURS' : formality.statut === 'EN_COURS' ? 'TERMINE' : 'EN_COURS';
+                              try {
+                                await documentService.updateFormality(formality.id_formality, next);
+                                fetchOperation();
+                              } catch (err: any) {
+                                setError(err.message);
+                              }
+                            }}
+                          >
+                            Avancer
+                          </button>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {new Date(formality.created_at).toLocaleString()}
@@ -289,6 +316,23 @@ const ViewPage: React.FC = () => {
                 </tbody>
               </table>
             </div>
+          )}
+        </div>
+
+        <div className="border rounded p-4">
+          <h2 className="text-xl font-bold mb-4">Documents ({docs.length})</h2>
+          {docs.length === 0 ? (
+            <p className="text-gray-500">Aucun document lié à cette opération.</p>
+          ) : (
+            <ul className="space-y-2 text-sm">
+              {docs.map((doc) => (
+                <li key={doc.id_document}>
+                  <a className="text-blue-700 underline" href={`/documents/${doc.id_document}`}>
+                    {doc.reference_document} — {doc.type_document}
+                  </a>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       </div>

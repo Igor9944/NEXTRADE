@@ -64,6 +64,12 @@ import { createCartRoutes } from './routes/cartRoutes';
 import { createOrderRoutes } from './routes/orderRoutes';
 import { createShipmentRoutes } from './routes/shipmentRoutes';
 import { createImportExportRoutes } from './routes/importExportRoutes';
+import {
+  createDocumentRoutes,
+  createInvoiceRoutes,
+  createFormalityRoutes,
+  createImportExportDocumentRoutes
+} from './routes/documentRoutes';
 import { CategoryController } from './controllers/categoryController';
 import { CategoryService } from './services/categoryService';
 import { CategoryRepository } from './repositories/categoryRepository';
@@ -79,6 +85,12 @@ import { OrderRepository } from './repositories/orderRepository';
 import { ShipmentController } from './controllers/shipmentController';
 import { ShipmentService } from './services/shipmentService';
 import { ShipmentRepository } from './repositories/shipmentRepository';
+import { DocumentController } from './controllers/documentController';
+import { DocumentService } from './services/documentService';
+import { DocumentRepository } from './repositories/documentRepository';
+import { ImportExportRepository } from './repositories/importExportRepository';
+import { StorageService } from './services/storageService';
+import { PdfService } from './services/pdfService';
 
 // Initialize services and controllers
 const userRepository = new UserRepository(pool);
@@ -104,6 +116,19 @@ const orderController = new OrderController(orderService);
 const shipmentRepository = new ShipmentRepository(pool);
 const shipmentService = new ShipmentService(pool, shipmentRepository, orderRepository, userRepository);
 const shipmentController = new ShipmentController(shipmentService);
+const documentRepository = new DocumentRepository(pool);
+const documentService = new DocumentService(
+  pool,
+  documentRepository,
+  orderRepository,
+  productRepository,
+  new ImportExportRepository(pool),
+  shipmentRepository,
+  userRepository,
+  new StorageService(),
+  new PdfService()
+);
+const documentController = new DocumentController(documentService);
 
 // Setup routes
 const authRouter = createAuthRoutes(authController);
@@ -130,7 +155,7 @@ app.use('/api/v1/products', productRouter);
 // Cart and order routes
 const cartRouter = createCartRoutes(cartController);
 app.use('/api/v1/cart', authMiddleware, cartRouter);
-const orderRouter = createOrderRoutes(orderController);
+const orderRouter = createOrderRoutes(orderController, documentController);
 app.use('/api/v1/orders', authMiddleware, orderRouter);
 
 const shipmentRouter = createShipmentRoutes(shipmentController);
@@ -139,6 +164,11 @@ app.use('/api/v1/shipments', authMiddleware, shipmentRouter);
 // Import-Export routes
 const importExportRouter = createImportExportRoutes(pool);
 app.use('/api/v1/import-export', importExportRouter);
+app.use('/api/v1/import-export', authMiddleware, createImportExportDocumentRoutes(documentController));
+
+app.use('/api/v1/documents', authMiddleware, createDocumentRoutes(documentController));
+app.use('/api/v1/invoices', authMiddleware, createInvoiceRoutes(documentController));
+app.use('/api/v1/formalities', authMiddleware, createFormalityRoutes(documentController));
 
 // Test protected routes
 app.use('/api/v1/test', authMiddleware, testProtectedRoutes);
