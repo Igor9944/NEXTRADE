@@ -39,6 +39,11 @@ const DossierPage: React.FC = () => {
       <div className="bg-white rounded-lg shadow p-4 sm:p-6">
         <h1 className="text-xl font-bold mb-2">Dossier documentaire</h1>
         <p className="text-sm text-gray-600 break-all">Commande {orderId}</p>
+        {orderId && (user?.role === 'CLIENT' || user?.role === 'ADMIN') && (
+          <Link className="inline-block mt-3 text-blue-700 underline mr-4" to={`/payments?orderId=${orderId}`}>
+            Payer cette commande
+          </Link>
+        )}
         {user?.role === 'ADMIN' && orderId && !invoice && (
           <button
             className="mt-3 bg-blue-700 text-white rounded px-4 py-2"

@@ -5,7 +5,23 @@ import { ImportExportService } from '../src/services/importExportService';
 import { ImportExportController } from '../src/controllers/importExportController';
 import { AuthService } from '../src/services/authService';
 import { UserRepository } from '../src/repositories/userRepository';
+import { createCartRoutes } from '../src/routes/cartRoutes';
+import { CartController } from '../src/controllers/cartController';
+import { CartService } from '../src/services/cartService';
+import { CartRepository } from '../src/repositories/cartRepository';
+import { createOrderRoutes } from '../src/routes/orderRoutes';
+import { OrderController } from '../src/controllers/orderController';
+import { OrderService } from '../src/services/orderService';
 import { OrderRepository } from '../src/repositories/orderRepository';
+import { createCategoryRoutes } from '../src/routes/categoryRoutes';
+import { createProductRoutes } from '../src/routes/productRoutes';
+import { CategoryController } from '../src/controllers/categoryController';
+import { CategoryService } from '../src/services/categoryService';
+import { CategoryRepository } from '../src/repositories/categoryRepository';
+import { ProductController } from '../src/controllers/productController';
+import { ProductService } from '../src/services/productService';
+import { createAuthRoutes } from '../src/routes/authRoutes';
+import { AuthController } from '../src/controllers/authController';
 import { ProductRepository } from '../src/repositories/productRepository';
 import express, { Application, Request, Response, NextFunction } from 'express';
 import { createImportExportRoutes } from '../src/routes/importExportRoutes';
@@ -77,80 +93,104 @@ describe('Import-Export System', () => {
     productRepository = new ProductRepository(pool);
     importExportRepository = new ImportExportRepository(pool);
 
-    // Initialize services
     authService = new AuthService(userRepository);
     importExportService = new ImportExportService(importExportRepository);
-
-    // Initialize controllers
     importExportController = new ImportExportController(importExportService);
 
-    // Initialize Express app
+    const categoryRepository = new CategoryRepository(pool);
+    const productService = new ProductService(productRepository, categoryRepository);
+    const cartRepository = new CartRepository(pool);
+    const cartService = new CartService(cartRepository, productRepository, productService.getProductById.bind(productService));
+    const orderService = new OrderService(orderRepository, cartRepository, productRepository, userRepository);
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS carts (
+      id_cart UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      id_client UUID NOT NULL UNIQUE REFERENCES users(id_user) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    )`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS cart_items (
+      id_cart_item UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      id_cart UUID NOT NULL REFERENCES carts(id_cart) ON DELETE CASCADE,
+      id_product UUID NOT NULL REFERENCES products(id_product) ON DELETE CASCADE,
+      quantite INTEGER NOT NULL CHECK (quantite > 0),
+      created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE (id_cart, id_product)
+    )`);
+
     app = express();
     app.use(express.json());
-
-    // Make db available to all routes and middleware (copied from app.ts)
     app.use((req: Request, res: Response, next: NextFunction) => {
       (req as any).app = app;
       (req as any).db = pool;
       next();
     });
-
-    // Import export routes
-    const importExportRouter = createImportExportRoutes(pool);
-    app.use('/api/v1/import-export', authMiddleware, importExportRouter);
-
-    // Error handling middleware
+    app.use('/api/v1/auth', createAuthRoutes(new AuthController(authService)));
+    app.use('/api/v1/categories', createCategoryRoutes(new CategoryController(new CategoryService(categoryRepository))));
+    app.use('/api/v1/products', createProductRoutes(new ProductController(productService)));
+    app.use('/api/v1/cart', authMiddleware, createCartRoutes(new CartController(cartService)));
+    app.use('/api/v1/orders', authMiddleware, createOrderRoutes(new OrderController(orderService)));
+    app.use('/api/v1/import-export', authMiddleware, createImportExportRoutes(pool));
     app.use(errorMiddleware);
 
-    // Create test user using the auth service (properly hashes password)
     await authService.register(TEST_USER);
-
-    // Login to get token
     const loginResponse = await authService.login({
       email: TEST_USER.email,
       password: TEST_USER.password,
     });
-
     accessToken = loginResponse.accessToken;
 
-    // Get the created user ID from the login response
-    const testUserId = loginResponse.user.id;
+    const supplier = await authService.register({
+      ...TEST_USER,
+      email: `test_ie_supplier_${uniqueId}@nextrade.test`,
+      role: 'FOURNISSEUR',
+      nom_entreprise: 'IE Supplier'
+    });
+    const supplierLogin = await authService.login({
+      email: `test_ie_supplier_${uniqueId}@nextrade.test`,
+      password: TEST_USER.password
+    });
 
-    // Create test order
+    const categoryResponse = await request(app)
+      .post('/api/v1/categories')
+      .set('Authorization', `Bearer ${supplierLogin.accessToken}`)
+      .send({ nom: `IE Cat ${uniqueId}`, description: 'ie' });
+    if (categoryResponse.status !== 201) {
+      throw new Error('IE fixture category failed: ' + JSON.stringify(categoryResponse.body));
+    }
+
+    const productResponse = await request(app)
+      .post('/api/v1/products')
+      .set('Authorization', `Bearer ${supplierLogin.accessToken}`)
+      .send({
+        nom: `IE Product ${uniqueId}`,
+        description: 'ie product',
+        categorie: categoryResponse.body.data.nom,
+        prix_detail: 10,
+        prix_gros: 9
+      });
+    if (productResponse.status !== 201) {
+      throw new Error('IE fixture product failed: ' + JSON.stringify(productResponse.body));
+    }
+    testProductId = productResponse.body.data.id_product;
+    await pool.query(
+      'INSERT INTO inventory (id_product, quantite_disponible, seuil_alerte) VALUES ($1, $2, $3) ON CONFLICT (id_product) DO UPDATE SET quantite_disponible = EXCLUDED.quantite_disponible',
+      [testProductId, 1000, 1]
+    );
+
+    await request(app)
+      .post('/api/v1/cart/items')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ productId: testProductId, quantity: 2 });
     const orderResponse = await request(app)
       .post('/api/v1/orders')
       .set('Authorization', `Bearer ${accessToken}`)
       .send(TEST_ORDER);
-
-    console.log('Order creation response:', orderResponse.body);
-    
-    if (orderResponse.body.data && orderResponse.body.data.id_order) {
-      testOrderId = orderResponse.body.data.id_order;
-    } else {
-      // Fallback: try to get order ID from different field
-      testOrderId = orderResponse.body.data?.id_commande || '00000000-0000-0000-0000-000000000001';
+    if (orderResponse.status !== 201 || !orderResponse.body.data?.id_order) {
+      throw new Error('IE fixture order failed: ' + JSON.stringify(orderResponse.body));
     }
-
-    // Create test product - but first we need a category
-    // Let's check if we can get an existing category or create a simple one
-    // For now, we'll assume category ID 1 exists or we'll work around it
-    
-    // Try to create product without category first (might fail if category is required)
-    const productResponse = await request(app)
-      .post('/api/v1/products')
-      .set('Authorization', `Bearer ${accessToken}`)
-      .send(TEST_PRODUCT);
-
-    console.log('Product creation response:', productResponse.body);
-
-    // If that fails, we might need to create a category first
-    if (productResponse.status !== 201) {
-      // For now, let's just skip product creation and use a fake ID for testing validation
-      // In a full test we would create a proper category and product
-      testProductId = '00000000-0000-0000-0000-000000000001'; // Fake ID for validation tests
-    } else {
-      testProductId = productResponse.body.data.id_produit;
-    }
+    testOrderId = orderResponse.body.data.id_order;
   });
 
   afterAll(async () => {
@@ -162,7 +202,7 @@ describe('Import-Export System', () => {
       const operationData = {
         type_operation: 'IMPORT',
         id_order: testOrderId,
-        reference_operation: 'IMP-2026-TEST-001',
+        reference_operation: `IMP-${uniqueId}-001`,
         pays_origine: 'Chine',
         pays_destination: 'Togo',
         statut: 'PREPARATION',
@@ -208,7 +248,7 @@ describe('Import-Export System', () => {
       const operationData = {
         type_operation: 'EXPORT',
         id_purchase: 'fake-purchase-id', // This would fail validation in a real system with purchase check
-        reference_operation: 'EXP-2026-TEST-001',
+        reference_operation: `EXP-${uniqueId}-001`,
         pays_origine: 'Togo',
         pays_destination: 'Ghana',
         statut: 'PREPARATION',
@@ -239,7 +279,7 @@ describe('Import-Export System', () => {
       const operationData = {
         type_operation: 'IMPORT',
         id_order: testOrderId,
-        reference_operation: 'IMP-2026-TEST-002',
+        reference_operation: `IMP-${uniqueId}-002`,
         pays_origine: 'France',
         pays_destination: 'Belgique',
         statut: 'PREPARATION',
@@ -269,7 +309,7 @@ describe('Import-Export System', () => {
       expect(getResponse.body.success).toBe(true);
       expect(getResponse.body.data.operation).toBeDefined();
       expect(getResponse.body.data.operation.id_operation).toBe(operationId);
-      expect(getResponse.body.data.operation.reference_operation).toBe('IMP-2026-TEST-002');
+      expect(getResponse.body.data.operation.reference_operation).toBe(`IMP-${uniqueId}-002`);
       expect(getResponse.body.data.items).toHaveLength(1);
       expect(getResponse.body.data.items[0].quantite).toBe(75);
     });
@@ -292,7 +332,7 @@ describe('Import-Export System', () => {
       const operationData = {
         type_operation: 'IMPORT',
         id_order: testOrderId,
-        reference_operation: 'IMP-2026-TEST-003',
+        reference_operation: `IMP-${uniqueId}-003`,
         pays_origine: 'Espagne',
         pays_destination: 'Portugal',
         statut: 'PREPARATION',
@@ -329,7 +369,7 @@ describe('Import-Export System', () => {
       const operationData = {
         type_operation: 'IMPORT',
         id_order: testOrderId,
-        reference_operation: 'IMP-2026-TEST-004',
+        reference_operation: `IMP-${uniqueId}-004`,
         pays_origine: 'Allemagne',
         pays_destination: 'Senegal',
         statut: 'PREPARATION',
@@ -359,7 +399,7 @@ describe('Import-Export System', () => {
       const operationData = {
         type_operation: 'IMPORT',
         id_order: testOrderId,
-        reference_operation: 'IMP-2026-TEST-005',
+        reference_operation: `IMP-${uniqueId}-005`,
         pays_origine: 'Cote d\'Ivoire',
         pays_destination: 'Cote d\'Ivoire',
         statut: 'PREPARATION',
@@ -414,7 +454,7 @@ describe('Import-Export System', () => {
       const operationData2 = {
         type_operation: 'IMPORT',
         id_order: testOrderId,
-        reference_operation: 'IMP-2026-TEST-006',
+        reference_operation: `IMP-${uniqueId}-006`,
         // pays_origine is missing
         pays_destination: 'Algerie',
         statut: 'PREPARATION',
@@ -440,7 +480,7 @@ describe('Import-Export System', () => {
       const operationData3 = {
         type_operation: 'IMPORT',
         // id_order and id_purchase are both missing
-        reference_operation: 'IMP-2026-TEST-007',
+        reference_operation: `IMP-${uniqueId}-007`,
         pays_origine: 'Maroc',
         pays_destination: 'Algerie',
         statut: 'PREPARATION',
@@ -466,7 +506,7 @@ describe('Import-Export System', () => {
       const operationData4 = {
         type_operation: 'IMPORT',
         id_order: testOrderId,
-        reference_operation: 'IMP-2026-TEST-008',
+        reference_operation: `IMP-${uniqueId}-008`,
         pays_origine: 'Maroc',
         pays_destination: 'Algerie',
         statut: 'PREPARATION',

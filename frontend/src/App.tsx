@@ -13,6 +13,7 @@ import DocumentsListPage from './pages/documents/ListPage';
 import DocumentDetailPage from './pages/documents/DetailPage';
 import DossierPage from './pages/documents/DossierPage';
 import InvoiceDetailPage from './pages/invoices/DetailPage';
+import PayPage from './pages/payments/PayPage';
 import { clearSession, getSessionUser } from './auth/session';
 
 function Layout({ children }: { children: React.ReactNode }) {
@@ -30,6 +31,9 @@ function Layout({ children }: { children: React.ReactNode }) {
             {user?.role === 'CLIENT' && <Link to="/shipments/my" className="text-blue-700">Suivi</Link>}
             {user?.role === 'TRANSPORTEUR' && <Link to="/shipments/assigned" className="text-blue-700">Mes tournées</Link>}
             {user && <Link to="/documents" className="text-blue-700">Documents</Link>}
+            {(user?.role === 'CLIENT' || user?.role === 'ADMIN') && (
+              <Link to="/payments" className="text-blue-700">Paiement</Link>
+            )}
             {user ? (
               <button
                 className="text-gray-600"
@@ -73,6 +77,7 @@ function App() {
           <Route path="/documents/dossier/:orderId" element={<DossierPage />} />
           <Route path="/documents/:id" element={<DocumentDetailPage />} />
           <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
+          <Route path="/payments" element={<PayPage />} />
         </Routes>
       </Layout>
     </BrowserRouter>

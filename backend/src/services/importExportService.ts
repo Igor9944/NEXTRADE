@@ -39,8 +39,11 @@ export class ImportExportService {
       throw new Error('Either id_order or id_purchase must be provided');
     }
 
-    // Validate that pays_origine and pays_destination are not empty
-    if (!data.pays_origine.trim() || !data.pays_destination.trim()) {
+    if (!data.reference_operation || !String(data.reference_operation).trim()) {
+      throw new Error('Reference operation is required');
+    }
+
+    if (!(data.pays_origine || '').trim() || !(data.pays_destination || '').trim()) {
       throw new Error('Origin and destination countries are required');
     }
 

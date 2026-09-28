@@ -23,7 +23,12 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
 app.use(cors());
-app.use(express.json());
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.originalUrl === '/api/v1/payments/webhook') {
+    return express.raw({ type: 'application/json' })(req, res, next);
+  }
+  return express.json()(req, res, next);
+});
 
 // Import custom middleware
 import { errorMiddleware } from './middlewares/errorMiddleware';
@@ -91,6 +96,12 @@ import { DocumentRepository } from './repositories/documentRepository';
 import { ImportExportRepository } from './repositories/importExportRepository';
 import { StorageService } from './services/storageService';
 import { PdfService } from './services/pdfService';
+import { PaymentController } from './controllers/paymentController';
+import { PaymentService } from './services/paymentService';
+import { PaymentRepository } from './repositories/paymentRepository';
+import { createPaymentProvider } from './services/paymentProvider';
+import { NotificationService, createNotificationProvider } from './services/notificationService';
+import { createPaymentRoutes } from './routes/paymentRoutes';
 
 // Initialize services and controllers
 const userRepository = new UserRepository(pool);
@@ -129,6 +140,15 @@ const documentService = new DocumentService(
   new PdfService()
 );
 const documentController = new DocumentController(documentService);
+const paymentService = new PaymentService(
+  pool,
+  new PaymentRepository(pool),
+  orderRepository,
+  userRepository,
+  createPaymentProvider(),
+  new NotificationService(pool, createNotificationProvider())
+);
+const paymentController = new PaymentController(paymentService);
 
 // Setup routes
 const authRouter = createAuthRoutes(authController);
@@ -155,7 +175,7 @@ app.use('/api/v1/products', productRouter);
 // Cart and order routes
 const cartRouter = createCartRoutes(cartController);
 app.use('/api/v1/cart', authMiddleware, cartRouter);
-const orderRouter = createOrderRoutes(orderController, documentController);
+const orderRouter = createOrderRoutes(orderController, documentController, paymentController);
 app.use('/api/v1/orders', authMiddleware, orderRouter);
 
 const shipmentRouter = createShipmentRoutes(shipmentController);
@@ -169,6 +189,9 @@ app.use('/api/v1/import-export', authMiddleware, createImportExportDocumentRoute
 app.use('/api/v1/documents', authMiddleware, createDocumentRoutes(documentController));
 app.use('/api/v1/invoices', authMiddleware, createInvoiceRoutes(documentController));
 app.use('/api/v1/formalities', authMiddleware, createFormalityRoutes(documentController));
+
+app.post('/api/v1/payments/webhook', paymentController.webhook);
+app.use('/api/v1/payments', authMiddleware, createPaymentRoutes(paymentController));
 
 // Test protected routes
 app.use('/api/v1/test', authMiddleware, testProtectedRoutes);
