@@ -22,16 +22,13 @@ L’API suit une architecture REST et est organisée de manière modulaire.
 
 ```text
 NexTrade/
-├── backend/            # Code serveur Node.js/Express/TypeScript
-├── frontend/           # Application web React/TypeScript/Tailwind
-├── mobile/             # Application mobile Flutter/Dart
-├── ai/                 # Service d'intelligence artificielle Python
-├── database/           # Scripts de base de données (migrations, seeds)
+├── backend/            # API Node.js/Express/TypeScript
+├── frontend/           # Web React/TypeScript/Tailwind
+├── mobile/             # Flutter/Dart
+├── ai/                 # Service IA Python
+├── database/           # Migrations et seeds
 ├── docs/               # Documentation technique
-├── scripts/            # Scripts utilitaires de développement
-├── .gitignore
-├── .editorconfig
-├── README.md
+├── scripts/            # Scripts de développement
 └── docker-compose.yml
 ```
 
