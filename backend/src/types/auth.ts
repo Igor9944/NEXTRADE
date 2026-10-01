@@ -1,6 +1,3 @@
-/**
- * User type
- */
 export interface User {
   id_user: string;
   email: string;
@@ -19,9 +16,6 @@ export interface User {
   updated_at: Date;
 }
 
-/**
- * Supplier profile type
- */
 export interface SupplierProfile {
   id_supplier_profile: string;
   user_id: string;
@@ -35,12 +29,12 @@ export interface SupplierProfile {
 }
 
 /**
- * User registration data
+ * Public registration only creates CLIENT accounts.
+ * Privileged roles must be provisioned by an administrator/seed.
  */
 export interface RegisterUserDto {
   email: string;
   password: string;
-  role: 'ADMIN' | 'FOURNISSEUR' | 'CLIENT' | 'COMMERCANT' | 'TRANSPORTEUR';
   nom_entreprise: string;
   telephone: string;
   nom: string;
@@ -50,17 +44,11 @@ export interface RegisterUserDto {
   pays: string;
 }
 
-/**
- * User login data
- */
 export interface LoginUserDto {
   email: string;
   password: string;
 }
 
-/**
- * Auth response data
- */
 export interface AuthResponse {
   message: string;
   accessToken: string;
@@ -71,9 +59,6 @@ export interface AuthResponse {
   };
 }
 
-/**
- * Supplier profile data for creation/update
- */
 export interface SupplierProfileDto {
   description: string;
   identifiant_professionnel: string;
