@@ -1,50 +1,46 @@
 import { UserRepository } from '../repositories/userRepository';
 import { hashPassword, comparePassword, validatePassword } from '../utils/password';
 import { generateToken } from '../utils/jwt';
-import { RegisterUserDto, LoginUserDto, User, AuthResponse } from '../types/auth';
+import { RegisterUserDto, LoginUserDto, AuthResponse } from '../types/auth';
 
-/**
- * Authentication service
- */
 export class AuthService {
   constructor(private userRepository: UserRepository) {}
 
-  /**
-   * Register a new user
-   * @param userData - Registration data
-   * @returns Auth response with token and user data
-   * @throws Error if email already exists or password is invalid
-   */
   async register(userData: RegisterUserDto): Promise<AuthResponse> {
-    // Check if user already exists
-    const existingUser = await this.userRepository.findByEmail(userData.email);
-    if (existingUser) {
-      throw new Error('Email already exists');
+    const email = String(userData.email || '').trim().toLowerCase();
+    if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+      throw new Error('Invalid email');
     }
 
-    // Validate password strength
     if (!validatePassword(userData.password)) {
       throw new Error('Password must be at least 8 characters long and contain at least one uppercase letter, one digit, and one special character');
     }
 
-    // Hash password
-    const passwordHash = await hashPassword(userData.password);
+    const existingUser = await this.userRepository.findByEmail(email);
+    if (existingUser) {
+      throw new Error('Email already exists');
+    }
 
-    // Create user (excluding password field and letting DB handle id_user, created_at, updated_at)
-    const { password, ...userDataWithoutPassword } = userData;
+    const passwordHash = await hashPassword(userData.password);
     const newUser = await this.userRepository.create({
-      ...userDataWithoutPassword,
-      password_hash: passwordHash
+      email,
+      password_hash: passwordHash,
+      role: 'CLIENT',
+      nom_entreprise: String(userData.nom_entreprise || '').trim(),
+      telephone: String(userData.telephone || '').trim(),
+      nom: String(userData.nom || '').trim(),
+      prenom: String(userData.prenom || '').trim(),
+      adresse: String(userData.adresse || '').trim(),
+      ville: String(userData.ville || '').trim(),
+      pays: String(userData.pays || '').trim()
     });
 
-    // Generate JWT token
     const accessToken = generateToken({
       id: newUser.id_user,
       email: newUser.email,
       role: newUser.role
     });
 
-    // Return response (without password hash)
     return {
       message: 'Registration successful',
       accessToken,
@@ -56,36 +52,26 @@ export class AuthService {
     };
   }
 
-  /**
-   * Login user
-   * @param loginData - Login credentials
-   * @returns Auth response with token and user data
-   * @throws Error if credentials are invalid
-   */
   async login(loginData: LoginUserDto): Promise<AuthResponse> {
-    // Find user by email
-    const user = await this.userRepository.findByEmail(loginData.email);
+    const email = String(loginData.email || '').trim().toLowerCase();
+    const password = String(loginData.password || '');
+
+    const user = await this.userRepository.findByEmail(email);
     if (!user) {
       throw new Error('Invalid credentials');
     }
 
-    // Compare passwords
-    const isValidPassword = await comparePassword(
-      loginData.password,
-      user.password_hash
-    );
+    const isValidPassword = await comparePassword(password, user.password_hash);
     if (!isValidPassword) {
       throw new Error('Invalid credentials');
     }
 
-    // Generate JWT token
     const accessToken = generateToken({
       id: user.id_user,
       email: user.email,
       role: user.role
     });
 
-    // Return response (without password hash)
     return {
       message: 'Login successful',
       accessToken,
