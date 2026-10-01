@@ -1,5 +1,4 @@
-import app from './app';
-import { pool } from './app';
+import app, { pool } from './app';
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
@@ -17,16 +16,25 @@ const testDatabaseConnection = async () => {
 const startServer = async () => {
   await testDatabaseConnection();
   
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
   });
 };
 
 // Handle graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('Shutting down gracefully...');
-  await pool.end();
-  process.exit(0);
-});
+const shutdown = async (signal: string) => {
+  console.log(`Received ${signal}; shutting down gracefully...`);
+  server.close(async () => {
+    await pool.end();
+    process.exit(0);
+  });
+  setTimeout(async () => {
+    await pool.end();
+    process.exit(1);
+  }, 10_000).unref();
+};
+
+process.once('SIGINT', () => void shutdown('SIGINT'));
+process.once('SIGTERM', () => void shutdown('SIGTERM'));
 
 startServer();
