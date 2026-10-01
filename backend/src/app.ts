@@ -19,6 +19,10 @@ const allowedOrigins = (process.env.CORS_ORIGINS || '')
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+if (isProduction && allowedOrigins.length === 0) {
+  throw new Error('CORS_ORIGINS must be configured in production');
+}
+
 const poolConfig = {
   host: process.env.DB_HOST,
   port: parseInt(process.env.DB_PORT || '5432', 10),
