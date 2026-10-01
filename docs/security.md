@@ -48,7 +48,7 @@ Endpoint: `POST /api/v1/auth/login`
 - Factory `requireRole(...)` qui crée un middleware vérifiant les rôles
 - Utilisation: `app.use('/api/v1/admin', authMiddleware, requireRole('ADMIN'))`
 - Retourne 401 si non authentifié
-- Retourne 403 si authentifié mais rôle insuffisant
+- Import-export (`GET/POST /api/v1/import-export`) : authentification JWT. Sans jeton → 401. Rôle `TRANSPORTEUR` → 403.
 
 ### Matrix d'accès
 | Ressource             | ADMIN | FOURNISSEUR | CLIENT | COMMERCANT | TRANSPORTEUR |
@@ -150,6 +150,14 @@ AI_SERVICE_URL= http://localhost:5000
 8. **HTTP security headers**: Utilisation de Helmet.js
 9. **CORS**: Configuration restrictive à adapter selon les besoins frontend
 10. **Audit and logging**: Journalisation des événements de sécurité sans exposer de secrets
+
+## Mobile
+
+- JWT dans `flutter_secure_storage`, jamais dans le code
+- 401/403 mappés vers des messages utilisateur (pas de stack trace)
+- IDOR : `GET /api/v1/orders/:id` et `GET /api/v1/shipments/:id` refusent un autre client (403)
+- Catalogue public en lecture ; panier/commandes authentifiés
+- HTTPS : à activer derrière un reverse proxy en démo hébergée. Local = HTTP `127.0.0.1`
 
 ## Recommandations pour la production
 

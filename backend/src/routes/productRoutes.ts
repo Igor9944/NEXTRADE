@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middlewares/authMiddleware';
+import { authMiddleware, optionalAuthMiddleware } from '../middlewares/authMiddleware';
 import { requireRole } from '../middlewares/roleMiddleware';
 import { ProductController } from '../controllers/productController';
 
@@ -12,8 +12,8 @@ export const createProductRoutes = (productController: ProductController) => {
   const router = Router();
 
   router.post('/', authMiddleware, requireRole('FOURNISSEUR', 'ADMIN'), productController.createProduct);
-  router.get('/catalog', productController.getCatalog);
-  router.get('/:id', productController.getById);
+  router.get('/catalog', optionalAuthMiddleware, productController.getCatalog);
+  router.get('/:id', optionalAuthMiddleware, productController.getById);
 
   return router;
 };

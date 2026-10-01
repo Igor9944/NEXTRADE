@@ -9,32 +9,50 @@ export class ProductService {
   ) {}
 
   async createProduct(userId: string, productData: {
-    nom: string;
+    nom?: string;
+    name?: string;
     description?: string | null;
     categorie?: string | null;
+    category?: string | null;
     categoryIds?: string[];
-    prix_detail: number;
-    prix_gros: number;
+    category_id?: string | string[] | number | null;
+    prix_detail?: number | string;
+    price?: number | string;
+    prix_gros?: number | string;
+    wholesale_price?: number | string;
+    wholesalePrice?: number | string;
+    supplier_id?: string;
   }): Promise<ProductWithCategories> {
-    const normalizedName = productData.nom?.trim();
+    const normalizedName = (productData.nom ?? productData.name ?? '').toString().trim();
     if (!normalizedName) {
       throw new Error('Product name is required');
     }
 
-    if (Number(productData.prix_detail) < 0 || Number(productData.prix_gros) < 0) {
+    const normalizedCategory = (productData.categorie ?? productData.category ?? '').toString().trim() || null;
+    const rawCategoryIds = productData.categoryIds && productData.categoryIds.length > 0
+      ? productData.categoryIds
+      : productData.category_id !== undefined && productData.category_id !== null
+        ? (Array.isArray(productData.category_id) ? productData.category_id : [productData.category_id])
+        : [];
+    const categoryIds = rawCategoryIds
+      .map((value) => String(value).trim())
+      .filter(Boolean);
+    const detailPrice = Number(productData.prix_detail ?? productData.price ?? 0);
+    const grosPrice = Number(productData.prix_gros ?? productData.wholesale_price ?? productData.wholesalePrice ?? productData.price ?? detailPrice);
+
+    if (Number.isNaN(detailPrice) || Number.isNaN(grosPrice) || detailPrice < 0 || grosPrice < 0) {
       throw new Error('Prices must be positive or zero');
     }
 
     const created = await this.productRepository.create({
       id_fournisseur: userId,
       nom: normalizedName,
-      description: productData.description?.trim() || null,
-      categorie: productData.categorie?.trim() || null,
-      prix_detail: Number(productData.prix_detail),
-      prix_gros: Number(productData.prix_gros)
+      description: (productData.description ?? '').toString().trim() || null,
+      categorie: normalizedCategory,
+      prix_detail: detailPrice,
+      prix_gros: grosPrice
     });
 
-    const categoryIds = productData.categoryIds || [];
     if (categoryIds.length > 0) {
       const categories = await this.categoryRepository.findByIds(categoryIds);
       if (categories.length !== categoryIds.length) {
@@ -63,10 +81,14 @@ export class ProductService {
     const effectivePrice = profile.toUpperCase() === 'CLIENT'
       ? Number(product.prix_detail).toFixed(2)
       : Number(product.prix_gros).toFixed(2);
+    const stockQuantity = await this.productRepository.getAvailableStock(id);
+    const stockStatus = stockQuantity <= 0 ? 'OUT' : stockQuantity <= 10 ? 'LOW' : 'OK';
 
     return {
       ...product,
-      effective_price: effectivePrice
+      effective_price: effectivePrice,
+      stock_quantity: stockQuantity,
+      stock_status: stockStatus
     };
   }
 

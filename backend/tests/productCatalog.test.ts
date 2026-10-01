@@ -9,10 +9,14 @@ import { UserRepository } from '../src/repositories/userRepository';
 import { errorMiddleware } from '../src/middlewares/errorMiddleware';
 import { authMiddleware } from '../src/middlewares/authMiddleware';
 import { createCategoryRoutes } from '../src/routes/categoryRoutes';
+import { createSupplierRoutes } from '../src/routes/supplierRoutes';
 import { createProductRoutes } from '../src/routes/productRoutes';
 import { CategoryController } from '../src/controllers/categoryController';
 import { CategoryService } from '../src/services/categoryService';
 import { CategoryRepository } from '../src/repositories/categoryRepository';
+import { SupplierController } from '../src/controllers/supplierController';
+import { SupplierService } from '../src/services/supplierService';
+import { SupplierRepository } from '../src/repositories/supplierRepository';
 import { ProductController } from '../src/controllers/productController';
 import { ProductService } from '../src/services/productService';
 import { ProductRepository } from '../src/repositories/productRepository';
@@ -84,9 +88,24 @@ describe('Product catalog and pricing', () => {
     const categoryRepository = new CategoryRepository(pool);
     const categoryService = new CategoryService(categoryRepository);
     const categoryController = new CategoryController(categoryService);
+    const supplierRepository = new SupplierRepository(pool);
+    const supplierService = new SupplierService(supplierRepository);
+    const supplierController = new SupplierController(supplierService);
     const productRepository = new ProductRepository(pool);
     const productService = new ProductService(productRepository, categoryRepository);
     const productController = new ProductController(productService);
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS supplier_profiles (
+      id_supplier_profile UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      user_id UUID NOT NULL UNIQUE REFERENCES users(id),
+      description TEXT,
+      identifiant_professionnel VARCHAR(255),
+      statut_verification VARCHAR(30) NOT NULL DEFAULT 'NON_VERIFIE',
+      date_verification TIMESTAMPTZ,
+      email_professionnel VARCHAR(255),
+      created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    )`);
 
     app = express();
     app.use(express.json());
@@ -97,6 +116,7 @@ describe('Product catalog and pricing', () => {
 
     app.use('/api/v1/auth', createAuthRoutes(authController));
     app.use('/api/v1/categories', createCategoryRoutes(categoryController));
+    app.use('/api/v1/suppliers', createSupplierRoutes(supplierController));
     app.use('/api/v1/products', createProductRoutes(productController));
     app.use('/api/v1/test', authMiddleware, (req, res) => res.status(200).json({ status: 'success' }));
     app.use(errorMiddleware);
@@ -159,6 +179,56 @@ describe('Product catalog and pricing', () => {
     expect(response.body.data.nom).toBe('Produit catalogue test');
     expect(response.body.data.id_fournisseur).toBeTruthy();
     productId = response.body.data.id_product;
+  });
+
+  it('should accept supplier creation and compatible payload aliases used by the runtime flow', async () => {
+    const supplierAliasUser = {
+      email: `catalog-supplier-alias-${Date.now()}@nextrade.test`,
+      password: 'SupplierPass123!',
+      role: 'FOURNISSEUR' as const,
+      nom_entreprise: 'Supplier Alias',
+      telephone: '+22891100003',
+      nom: 'Supplier',
+      prenom: 'Alias',
+      adresse: 'Supplier Alias Street',
+      ville: 'Lome',
+      pays: 'Togo'
+    };
+
+    const registerResponse = await request(app)
+      .post('/api/v1/auth/register')
+      .send(supplierAliasUser);
+
+    expect(registerResponse.status).toBe(201);
+    const aliasToken = registerResponse.body.accessToken;
+
+    const supplierProfileResponse = await request(app)
+      .post('/api/v1/suppliers')
+      .set('Authorization', `Bearer ${aliasToken}`)
+      .send({
+        description: 'Fournisseur alias',
+        identifiant_professionnel: 'S-ALIAS-001',
+        email_professionnel: 'alias@supplier.test'
+      });
+
+    expect(supplierProfileResponse.status).toBe(201);
+    expect(supplierProfileResponse.body.status).toBe('success');
+
+    const productAliasResponse = await request(app)
+      .post('/api/v1/products')
+      .set('Authorization', `Bearer ${aliasToken}`)
+      .send({
+        name: 'Produit alias compatible',
+        description: 'Produit ajouté via le payload runtime compat',
+        category_id: categoryId,
+        price: 59.9,
+        stock: 12,
+        currency: 'XOF'
+      });
+
+    expect(productAliasResponse.status).toBe(201);
+    expect(productAliasResponse.body.status).toBe('success');
+    expect(productAliasResponse.body.data.nom).toBe('Produit alias compatible');
   });
 
   it('should return catalog with the correct price according to profile', async () => {

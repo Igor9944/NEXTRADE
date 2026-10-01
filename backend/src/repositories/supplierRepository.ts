@@ -127,40 +127,33 @@ export class SupplierRepository {
    * @returns Paginated list of supplier profiles
    */
   async findAll(page: number = 1, limit: number = 10, search: string = ''): Promise<{ profiles: SupplierProfile[]; total: number; page: number; limit: number; totalPages: number }> {
-    // Build search condition
-    let searchCondition = '';
-    const searchValues: any[] = [];
-    let searchIndex = 1;
-
-    if (search.trim() !== '') {
-      searchCondition = `WHERE (identifiant_professionnel ILIKE $${searchIndex++} OR description ILIKE $${searchIndex++} OR email_professionnel ILIKE $${searchIndex++}) AND `;
-      const searchTerm = `%${search}%`;
-      searchValues.push(searchTerm, searchTerm, searchTerm);
+    const term = search.trim();
+    const values: unknown[] = [];
+    const where = term
+      ? 'WHERE (identifiant_professionnel ILIKE $1 OR description ILIKE $1 OR email_professionnel ILIKE $1)'
+      : '';
+    if (term) {
+      values.push(`%${term}%`);
     }
 
-    // Count total records
     const countResult = await this.pool.query(
-      `SELECT COUNT(*) as total FROM supplier_profiles ${searchCondition}true`,
-      [...searchValues]
+      `SELECT COUNT(*) as total FROM supplier_profiles ${where}`,
+      values
     );
-    const total = parseInt(countResult.rows[0].total);
+    const total = parseInt(countResult.rows[0].total, 10);
     const totalPages = Math.ceil(total / limit);
 
-    // Ensure page is within bounds
     const safePage = Math.max(1, Math.min(page, totalPages || 1));
     const offset = (safePage - 1) * limit;
+    const limitIdx = values.length + 1;
+    const offsetIdx = values.length + 2;
 
-    // Get paginated records
     const result = await this.pool.query(
       `SELECT id_supplier_profile, user_id, description, identifiant_professionnel, statut_verification, date_verification, email_professionnel, created_at, updated_at
-       FROM supplier_profiles ${searchCondition}true
+       FROM supplier_profiles ${where}
        ORDER BY created_at DESC
-       LIMIT $${searchIndex + (searchCondition === '' ? 1 : 2)} OFFSET $${searchIndex + (searchCondition === '' ? 2 : 3)}`,
-      [
-        ...searchValues,
-        limit,
-        offset
-      ]
+       LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+      [...values, limit, offset]
     );
 
     return {

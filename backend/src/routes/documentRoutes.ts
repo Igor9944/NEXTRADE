@@ -16,6 +16,7 @@ export const createDocumentRoutes = (controller: DocumentController) => {
 export const createInvoiceRoutes = (controller: DocumentController) => {
   const router = Router();
   router.get('/:id/download', controller.downloadInvoice);
+  router.get('/:id/pdf', controller.downloadInvoice);
   router.get('/:id', controller.getInvoice);
   return router;
 };

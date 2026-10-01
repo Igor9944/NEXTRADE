@@ -64,9 +64,8 @@ export class ProfileController {
       }
 
       // Update only the allowed profile fields
-      const { nom, prenom, adresse, ville, pays } = req.body;
+      const { nom, prenom, adresse, ville, pays, ui_language, assistant_language } = req.body;
       
-      // Build update object with only provided fields
       const updateData: Partial<Omit<User, 'id_user' | 'email' | 'password_hash' | 'role' | 'nom_entreprise' | 'telephone' | 'created_at' | 'updated_at'>> = {};
       
       if (nom !== undefined) updateData.nom = nom;
@@ -74,6 +73,12 @@ export class ProfileController {
       if (adresse !== undefined) updateData.adresse = adresse;
       if (ville !== undefined) updateData.ville = ville;
       if (pays !== undefined) updateData.pays = pays;
+      if (ui_language === 'fr' || ui_language === 'en' || ui_language === 'ar') {
+        updateData.ui_language = ui_language;
+      }
+      if (assistant_language === 'fr' || assistant_language === 'en' || assistant_language === 'ar') {
+        updateData.assistant_language = assistant_language;
+      }
 
       // Check if there's anything to update
       if (Object.keys(updateData).length === 0) {

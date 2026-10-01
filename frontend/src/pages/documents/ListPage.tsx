@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom';
 import { documentService } from '../../services/documentService';
 import { TradeDocument } from '../../types/document';
 import { getSessionUser } from '../../auth/session';
+import { useI18n } from '../../i18n/I18nProvider';
 
 const DocumentsListPage: React.FC = () => {
+  const { t } = useI18n();
   const user = getSessionUser();
   const [documents, setDocuments] = useState<TradeDocument[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +30,7 @@ const DocumentsListPage: React.FC = () => {
 
   return (
     <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-      <h1 className="text-xl font-bold mb-4">Dossier documentaire</h1>
+      <h1 className="text-xl font-bold mb-4">{t('documentsTitle')}</h1>
       {error && <p className="text-red-600 mb-3">{error}</p>}
       <form
         className="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-4"
@@ -37,14 +39,14 @@ const DocumentsListPage: React.FC = () => {
           load();
         }}
       >
-        <input className="border rounded px-3 py-2" placeholder="UUID commande" value={orderId} onChange={(e) => setOrderId(e.target.value)} />
+        <input className="border rounded px-3 py-2" placeholder={t('orderUuid')} value={orderId} onChange={(e) => setOrderId(e.target.value)} />
         <select className="border rounded px-3 py-2" value={type} onChange={(e) => setType(e.target.value)}>
-          <option value="">Tous les types</option>
+          <option value="">{t('allTypes')}</option>
           {['FACTURE_COMMERCIALE', 'PACKING_LIST', 'CERTIFICAT_ORIGINE', 'DOCUMENT_DOUANE', 'DOCUMENT_TRANSPORT', 'AUTRE'].map((value) => (
             <option key={value} value={value}>{value}</option>
           ))}
         </select>
-        <button className="bg-gray-800 text-white rounded px-4 py-2" type="submit">Filtrer</button>
+        <button className="bg-gray-800 text-white rounded px-4 py-2" type="submit">{t('filter')}</button>
       </form>
 
       {user?.role === 'ADMIN' && (
@@ -62,9 +64,9 @@ const DocumentsListPage: React.FC = () => {
               }
             }}
           >
-            <h2 className="font-semibold">Générer une facture</h2>
-            <input className="border rounded px-3 py-2 w-full" placeholder="UUID commande" value={invoiceOrderId} onChange={(e) => setInvoiceOrderId(e.target.value)} />
-            <button className="bg-blue-700 text-white rounded px-4 py-2" type="submit">Créer la facture PDF</button>
+            <h2 className="font-semibold">{t('generateInvoice')}</h2>
+            <input className="border rounded px-3 py-2 w-full" placeholder={t('orderUuid')} value={invoiceOrderId} onChange={(e) => setInvoiceOrderId(e.target.value)} />
+            <button className="bg-blue-700 text-white rounded px-4 py-2" type="submit">{t('createInvoicePdf')}</button>
           </form>
           <form
             className="border rounded p-3 space-y-2"

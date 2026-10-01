@@ -115,6 +115,27 @@ export class NotificationService {
     );
     return 'SENT';
   }
+
+  async listForRecipient(recipient: string, role: string) {
+    if (role === 'ADMIN') {
+      const result = await this.pool.query(
+        `SELECT id_notification, event_type, aggregate_id, channel, recipient, status, created_at
+         FROM notification_events
+         ORDER BY created_at DESC
+         LIMIT 50`
+      );
+      return result.rows;
+    }
+    const result = await this.pool.query(
+      `SELECT id_notification, event_type, aggregate_id, channel, recipient, status, created_at
+       FROM notification_events
+       WHERE recipient = $1
+       ORDER BY created_at DESC
+       LIMIT 50`,
+      [recipient]
+    );
+    return result.rows;
+  }
 }
 
 export function createNotificationProvider(): NotificationProvider {

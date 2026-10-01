@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { ImportExportService } from '../../services/importExportService';
+import { useI18n } from '../../i18n/I18nProvider';
 import {
   ImportExportOperationRecord,
   ImportExportOperationType,
@@ -9,8 +11,9 @@ import {
 const importExportService = new ImportExportService();
 
 const ListPage: React.FC = () => {
+  const { t } = useI18n();
   const [operations, setOperations] = useState<ImportExportOperationRecord[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     type_operation: '' as ImportExportOperationType | '',
@@ -21,249 +24,135 @@ const ListPage: React.FC = () => {
     page: 1,
     limit: 10,
   });
-
-  const [pagination, setPagination] = useState({
-    total: 0,
-    page: 1,
-    limit: 10,
-    totalPages: 0,
-  });
+  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 10, totalPages: 0 });
 
   useEffect(() => {
+    const fetchOperations = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const filterObj: Record<string, string | number> = {};
+        Object.entries(filters).forEach(([key, value]) => {
+          if (value !== '' && value !== null) filterObj[key] = value;
+        });
+        const result = await importExportService.listOperations(filterObj as never);
+        setOperations(result.operations || []);
+        setPagination({
+          total: result.total || 0,
+          page: result.page || 1,
+          limit: result.limit || 10,
+          totalPages: result.totalPages || 0,
+        });
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : t('error'));
+        setOperations([]);
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchOperations();
-  }, [filters]);
-
-  const fetchOperations = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      // Remove empty filters
-      const filteredKeys = Object.keys(filters).filter(
-        (key) => filters[key as keyof typeof filters] !== '' && filters[key as keyof typeof filters] !== null
-      );
-      
-      const filterObj: any = {};
-      filteredKeys.forEach((key) => {
-        filterObj[key] = filters[key];
-      });
-
-      const result = await importExportService.listOperations(filterObj);
-      setOperations(result.operations);
-      setPagination({
-        total: result.total,
-        page: result.page,
-        limit: result.limit,
-        totalPages: result.totalPages,
-      });
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while fetching operations');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [filters, t]);
 
   const handleStatusChange = (op: ImportExportOperationRecord) => {
-    // For simplicity, we'll just cycle through statuses for demo
-    // In a real app, you'd have a dropdown with allowed transitions
     const statusOrder: ImportExportOperationStatus[] = [
-      'PREPARATION',
-      'EXPEDIEE',
-      'EN_TRANSIT',
-      'ARRIVEE',
-      'DOUANE',
-      'LIVREE',
+      'PREPARATION', 'EXPEDIEE', 'EN_TRANSIT', 'ARRIVEE', 'DOUANE', 'LIVREE',
     ];
     const currentIndex = statusOrder.indexOf(op.statut as ImportExportOperationStatus);
     const newStatus = statusOrder[(currentIndex + 1) % statusOrder.length];
-    
     importExportService.updateOperationStatus(op.id_operation, newStatus).then(() => {
-      fetchOperations();
+      setFilters({ ...filters });
     }).catch((err) => {
-      alert('Failed to update status: ' + err.message);
+      setError(err.message);
     });
   };
 
-  if (loading) {
-    return <div className="p-6">Loading...</div>;
-  }
-
-  if (error) {
-    return <div className="p-6 text-red-500">{error}</div>;
-  }
+  if (loading) return <div className="bg-white rounded-lg shadow p-6">{t('loading')}</div>;
+  if (error) return <div className="bg-white rounded-lg shadow p-6 text-red-600">{error}</div>;
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Import-Export Operations</h1>
-      
-      {/* Filters */}
+    <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+      <h1 className="text-2xl font-bold mb-4">{t('navImportExport')}</h1>
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">Type</label>
+        <label className="text-sm">
+          {t('ieType')}
           <select
             value={filters.type_operation}
-            onChange={(e) => setFilters({ ...filters, type_operation: e.target.value as ImportExportOperationType })}
-            className="w-full px-3 py-2 border rounded"
+            onChange={(e) => setFilters({ ...filters, type_operation: e.target.value as ImportExportOperationType, page: 1 })}
+            className="mt-1 w-full px-3 py-2 border rounded"
           >
-            <option value="">All Types</option>
-            <option value="IMPORT">Import</option>
-            <option value="EXPORT">Export</option>
+            <option value="">{t('ieAllTypes')}</option>
+            <option value="IMPORT">IMPORT</option>
+            <option value="EXPORT">EXPORT</option>
           </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Status</label>
+        </label>
+        <label className="text-sm">
+          {t('ieStatus')}
           <select
             value={filters.statut}
-            onChange={(e) => setFilters({ ...filters, statut: e.target.value as ImportExportOperationStatus })}
-            className="w-full px-3 py-2 border rounded"
+            onChange={(e) => setFilters({ ...filters, statut: e.target.value as ImportExportOperationStatus, page: 1 })}
+            className="mt-1 w-full px-3 py-2 border rounded"
           >
-            <option value="">All Statuses</option>
-            <option value="PREPARATION">Preparation</option>
-            <option value="EXPEDIEE">Expedited</option>
-            <option value="EN_TRANSIT">In Transit</option>
-            <option value="ARRIVEE">Arrived</option>
-            <option value="DOUANE">Customs</option>
-            <option value="LIVREE">Delivered</option>
-            <option value="ANNULEE">Cancelled</option>
+            <option value="">{t('ieAllStatuses')}</option>
+            {['PREPARATION', 'EXPEDIEE', 'EN_TRANSIT', 'ARRIVEE', 'DOUANE', 'LIVREE', 'ANNULEE'].map((value) => (
+              <option key={value} value={value}>{value}</option>
+            ))}
           </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Reference</label>
+        </label>
+        <label className="text-sm">
+          {t('ieReference')}
           <input
             value={filters.reference_operation}
-            onChange={(e) => setFilters({ ...filters, reference_operation: e.target.value })}
-            className="w-full px-3 py-2 border rounded"
-            placeholder="Search reference..."
+            onChange={(e) => setFilters({ ...filters, reference_operation: e.target.value, page: 1 })}
+            className="mt-1 w-full px-3 py-2 border rounded"
           />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Origin Country</label>
+        </label>
+        <label className="text-sm">
+          {t('ieOrigin')}
           <input
             value={filters.pays_origine}
-            onChange={(e) => setFilters({ ...filters, pays_origine: e.target.value })}
-            className="w-full px-3 py-2 border rounded"
-            placeholder="Origin country..."
+            onChange={(e) => setFilters({ ...filters, pays_origine: e.target.value, page: 1 })}
+            className="mt-1 w-full px-3 py-2 border rounded"
           />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Destination Country</label>
-          <input
-            value={filters.pays_destination}
-            onChange={(e) => setFilters({ ...filters, pays_destination: e.target.value })}
-            className="w-full px-3 py-2 border rounded"
-            placeholder="Destination country..."
-          />
-        </div>
-        <div className="flex items-end">
-          <button
-            onClick={() => setFilters({
-              ...filters,
-              page: 1, // Reset to first page when filtering
-            })}
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-          >
-            Apply Filters
-          </button>
-        </div>
+        </label>
       </div>
-      
-      {/* Create New Button */}
       <div className="mb-4">
-        <a 
-          href="/import-export/create" 
-          className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-        >
-          Create New Operation
-        </a>
+        <Link to="/import-export/create" className="inline-block bg-green-600 text-white px-4 py-2 rounded">
+          {t('ieCreate')}
+        </Link>
       </div>
-      
-      {/* Operations Table */}
       <div className="overflow-x-auto">
-        <table className="min-w-full bg-white border border-gray-200">
+        <table className="min-w-full bg-white border border-gray-200 text-sm">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Reference
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Type
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Origin
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Destination
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Date Departure
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Expected Arrival
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
+              <th className="px-4 py-3 text-start">{t('ieReference')}</th>
+              <th className="px-4 py-3 text-start">{t('ieType')}</th>
+              <th className="px-4 py-3 text-start">{t('ieOrigin')}</th>
+              <th className="px-4 py-3 text-start">{t('ieDestination')}</th>
+              <th className="px-4 py-3 text-start">{t('ieStatus')}</th>
+              <th className="px-4 py-3 text-start">{t('actions')}</th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody>
             {operations.length === 0 ? (
               <tr>
-                <td className="px-6 py-4 text-center text-gray-500" colSpan="8">
-                  No operations found
-                </td>
+                <td className="px-4 py-4 text-center text-gray-500" colSpan={6}>{t('ieEmpty')}</td>
               </tr>
             ) : (
               operations.map((op) => (
-                <tr key={op.id_operation} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {op.reference_operation}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {op.type_operation === 'IMPORT' ? 'Import' : 'Export'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {op.pays_origine}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {op.pays_destination}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <span
-                      className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                        op.statut === 'PREPARATION' ? 'bg-blue-100 text-blue-800' :
-                        op.statut === 'EXPEDIEE' ? 'bg-green-100 text-green-800' :
-                        op.statut === 'EN_TRANSIT' ? 'bg-yellow-100 text-yellow-800' :
-                        op.statut === 'ARRIVEE' ? 'bg-indigo-100 text-indigo-800' :
-                        op.statut === 'DOUANE' ? 'bg-purple-100 text-purple-800' :
-                        op.statut === 'LIVREE' ? 'bg-gray-100 text-gray-800' :
-                        'bg-red-100 text-red-800'
-                      }`}
-                    >
-                      {op.statut}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {op.date_depart ? new Date(op.date_depart).toLocaleDateString() : '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {op.date_arrivee_prevue ? new Date(op.date_arrivee_prevue).toLocaleDateString() : '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleStatusChange(op)}
-                        className="px-3 py-1 text-xs bg-gray-200 rounded hover:bg-gray-300"
-                      >
-                        Change Status
+                <tr key={op.id_operation} className="border-t">
+                  <td className="px-4 py-3">{op.reference_operation}</td>
+                  <td className="px-4 py-3">{op.type_operation}</td>
+                  <td className="px-4 py-3">{op.pays_origine}</td>
+                  <td className="px-4 py-3">{op.pays_destination}</td>
+                  <td className="px-4 py-3">{op.statut}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => handleStatusChange(op)} className="px-3 py-1 text-xs bg-gray-200 rounded">
+                        {t('ieChangeStatus')}
                       </button>
-                      <a
-                        href={`/import-export/view/${op.id_operation}`}
-                        className="px-3 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
-                      >
-                        View
-                      </a>
+                      <Link to={`/import-export/view/${op.id_operation}`} className="px-3 py-1 text-xs bg-blue-100 text-blue-800 rounded">
+                        {t('details')}
+                      </Link>
                     </div>
                   </td>
                 </tr>
@@ -272,37 +161,25 @@ const ListPage: React.FC = () => {
           </tbody>
         </table>
       </div>
-      
-      {/* Pagination */}
-      <div className="mt-6 flex items-center justify-between">
-        <div className="text-sm text-gray-500">
-          Showing {operations.length} of {pagination.total} operations
-        </div>
-        <div>
+      <div className="mt-6 flex items-center justify-between text-sm">
+        <div>{operations.length} / {pagination.total}</div>
+        <div className="flex gap-2">
           <button
-            onClick={() => {
-              if (filters.page > 1) {
-                setFilters({ ...filters, page: filters.page - 1 });
-              }
-            }}
+            type="button"
             disabled={filters.page === 1}
-            className="px-3 py-1 ml-2 bg-gray-200 rounded hover:bg-gray-300"
+            onClick={() => setFilters({ ...filters, page: filters.page - 1 })}
+            className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
           >
-            Previous
+            {t('previous')}
           </button>
-          <span className="px-3 py-1">
-            Page {filters.page} of {pagination.totalPages}
-          </span>
+          <span>{filters.page} / {pagination.totalPages || 1}</span>
           <button
-            onClick={() => {
-              if (filters.page < pagination.totalPages) {
-                setFilters({ ...filters, page: filters.page + 1 });
-              }
-            }}
-            disabled={filters.page === pagination.totalPages}
-            className="px-3 py-1 ml-2 bg-gray-200 rounded hover:bg-gray-300"
+            type="button"
+            disabled={filters.page >= (pagination.totalPages || 1)}
+            onClick={() => setFilters({ ...filters, page: filters.page + 1 })}
+            className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
           >
-            Next
+            {t('next')}
           </button>
         </div>
       </div>

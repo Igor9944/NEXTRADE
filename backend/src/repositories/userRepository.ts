@@ -1,6 +1,9 @@
 import { Pool } from 'pg';
 import { User } from '../types/auth';
 
+const USER_COLUMNS =
+  'id_user, email, password_hash, role, nom_entreprise, telephone, nom, prenom, adresse, ville, pays, ui_language, assistant_language, created_at, updated_at';
+
 /**
  * User repository for database operations
  */
@@ -14,7 +17,7 @@ export class UserRepository {
    */
   async findByEmail(email: string): Promise<User | null> {
     const result = await this.pool.query(
-      'SELECT id_user, email, password_hash, role, nom_entreprise, telephone, nom, prenom, adresse, ville, pays, created_at, updated_at FROM users WHERE email = $1',
+      `SELECT ${USER_COLUMNS} FROM users WHERE email = $1`,
       [email]
     );
     
@@ -32,7 +35,7 @@ export class UserRepository {
    */
   async findById(id: string): Promise<User | null> {
     const result = await this.pool.query(
-      'SELECT id_user, email, password_hash, role, nom_entreprise, telephone, nom, prenom, adresse, ville, pays, created_at, updated_at FROM users WHERE id_user = $1',
+      `SELECT ${USER_COLUMNS} FROM users WHERE id_user = $1`,
       [id]
     );
     
@@ -52,7 +55,7 @@ export class UserRepository {
     const result = await this.pool.query(
       `INSERT INTO users (email, password_hash, role, nom_entreprise, telephone, nom, prenom, adresse, ville, pays) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
-       RETURNING id_user, email, password_hash, role, nom_entreprise, telephone, nom, prenom, adresse, ville, pays, created_at, updated_at`,
+       RETURNING ${USER_COLUMNS}`,
       [
         userData.email,
         userData.password_hash,
@@ -85,7 +88,7 @@ export class UserRepository {
     // List of updatable fields (excluding immutable ones)
     const updatableFields = [
       'email', 'password_hash', 'role', 'nom_entreprise', 'telephone',
-      'nom', 'prenom', 'adresse', 'ville', 'pays'
+      'nom', 'prenom', 'adresse', 'ville', 'pays', 'ui_language', 'assistant_language'
     ] as const;
 
     updatableFields.forEach(field => {
@@ -104,7 +107,7 @@ export class UserRepository {
 
     const result = await this.pool.query(
       `UPDATE users SET ${fields.join(', ')} WHERE id_user = $${index}
-       RETURNING id_user, email, password_hash, role, nom_entreprise, telephone, nom, prenom, adresse, ville, pays, created_at, updated_at`,
+       RETURNING ${USER_COLUMNS}`,
       values
     );
 
@@ -173,7 +176,7 @@ export class UserRepository {
 
     // Get paginated records
     const result = await this.pool.query(
-      `SELECT id_user, email, password_hash, role, nom_entreprise, telephone, nom, prenom, adresse, ville, pays, created_at, updated_at
+      `SELECT ${USER_COLUMNS}
        FROM users ${whereClause}
        ORDER BY created_at DESC
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,

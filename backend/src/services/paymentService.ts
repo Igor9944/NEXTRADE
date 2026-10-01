@@ -5,6 +5,7 @@ import { PaymentRepository } from '../repositories/paymentRepository';
 import { OrderRepository } from '../repositories/orderRepository';
 import { UserRepository } from '../repositories/userRepository';
 import { NotificationService } from './notificationService';
+import { SignedSandboxPaymentProvider } from './paymentProvider';
 
 export class PaymentService {
   constructor(
@@ -71,6 +72,26 @@ export class PaymentService {
       });
       return { transaction: pending, checkout_url: gateway.checkout_url || null, reused: false };
     });
+  }
+
+  async confirmSandboxDemo(actor: Actor, transactionId: string) {
+    this.assertClientOrAdmin(actor);
+    if (!(this.provider instanceof SignedSandboxPaymentProvider)) {
+      throw new AppError('Sandbox confirmation is only available with PAYMENT_PROVIDER=sandbox', 400);
+    }
+    const transaction = await this.getTransaction(actor, transactionId);
+    if (!transaction.reference_externe) {
+      throw new AppError('Transaction has no provider reference', 400);
+    }
+    if (transaction.statut_transaction === 'VALIDEE') {
+      return { transaction, duplicate: true, notification: 'SKIPPED' as const };
+    }
+    const signed = this.provider.buildSignedEvent(
+      transaction.reference_externe,
+      `demo-confirm-${transaction.id_transaction}`,
+      'SUCCESS'
+    );
+    return this.handleWebhook(signed.headers, signed.raw);
   }
 
   async getTransaction(actor: Actor, id: string) {

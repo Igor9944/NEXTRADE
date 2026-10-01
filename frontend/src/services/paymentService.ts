@@ -8,6 +8,12 @@ export const paymentService = {
       body: JSON.stringify({ order_id })
     });
   },
+  confirmSandbox(id: string) {
+    return apiRequest<{
+      status: string;
+      data: { duplicate: boolean; notification: string; transaction: PaymentTransaction };
+    }>(`/api/v1/payments/${id}/sandbox-confirm`, { method: 'POST', body: JSON.stringify({}) });
+  },
   getById(id: string) {
     return apiRequest<{ status: string; data: PaymentTransaction }>(`/api/v1/payments/${id}`);
   },

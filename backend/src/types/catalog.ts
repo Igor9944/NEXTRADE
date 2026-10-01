@@ -23,6 +23,8 @@ export interface Product {
 export interface ProductWithCategories extends Product {
   categories: string[];
   effective_price: number | string;
+  stock_quantity?: number;
+  stock_status?: 'OK' | 'LOW' | 'OUT' | 'UNKNOWN';
 }
 
 export interface CreateCategoryDto {

@@ -72,7 +72,9 @@ export class SupplierController {
       const supplierData: SupplierProfileDto = req.body;
       const profile = await this.supplierService.createSupplierProfile({
         ...supplierData,
-        user_id: userId
+        user_id: userId,
+        statut_verification: supplierData.statut_verification ?? 'NON_VERIFIE',
+        date_verification: supplierData.date_verification ?? null
       });
 
       res.status(201).json({
@@ -157,9 +159,12 @@ export class SupplierController {
    */
   listSuppliers = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const page = parseInt(Array.isArray(req.query.page) ? String(req.query.page[0]) : String(req.query.page)) || 1;
-      const limit = parseInt(Array.isArray(req.query.limit) ? String(req.query.limit[0]) : String(req.query.limit)) || 10;
-      const search = Array.isArray(req.query.search) ? String(req.query.search[0]) : String(req.query.search) ?? '';
+      const pageRaw = Array.isArray(req.query.page) ? req.query.page[0] : req.query.page;
+      const limitRaw = Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit;
+      const searchRaw = Array.isArray(req.query.search) ? req.query.search[0] : req.query.search;
+      const page = parseInt(typeof pageRaw === 'string' ? pageRaw : '', 10) || 1;
+      const limit = parseInt(typeof limitRaw === 'string' ? limitRaw : '', 10) || 10;
+      const search = typeof searchRaw === 'string' ? searchRaw : '';
 
       const result = await this.supplierService.findAll(page, limit, search);
 

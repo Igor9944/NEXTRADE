@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { shipmentService } from '../../services/shipmentService';
 import { Shipment } from '../../types/shipment';
+import { useI18n } from '../../i18n/I18nProvider';
 
 const formatDate = (value?: string | null) => {
   if (!value) return '—';
@@ -9,6 +10,7 @@ const formatDate = (value?: string | null) => {
 };
 
 const ClientTrackingPage: React.FC = () => {
+  const { t } = useI18n();
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -26,18 +28,18 @@ const ClientTrackingPage: React.FC = () => {
 
   return (
     <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-      <h1 className="text-xl font-bold mb-4">Mes expéditions</h1>
+      <h1 className="text-xl font-bold mb-4">{t('myShipments')}</h1>
       {error && <p className="text-red-600 mb-3">{error}</p>}
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
             <tr className="text-left border-b">
-              <th className="py-2 pr-3">Référence</th>
-              <th className="py-2 pr-3">Commande</th>
-              <th className="py-2 pr-3">Statut</th>
-              <th className="py-2 pr-3">Transporteur</th>
-              <th className="py-2 pr-3">Suivi</th>
-              <th className="py-2">Détail</th>
+              <th className="py-2 pr-3">{t('reference')}</th>
+              <th className="py-2 pr-3">{t('order')}</th>
+              <th className="py-2 pr-3">{t('status')}</th>
+              <th className="py-2 pr-3">{t('carrier')}</th>
+              <th className="py-2 pr-3">{t('tracking')}</th>
+              <th className="py-2">{t('details')}</th>
             </tr>
           </thead>
           <tbody>

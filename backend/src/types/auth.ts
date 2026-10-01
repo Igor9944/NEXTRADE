@@ -13,6 +13,8 @@ export interface User {
   adresse: string | null;
   ville: string | null;
   pays: string | null;
+  ui_language?: 'fr' | 'en' | 'ar';
+  assistant_language?: 'fr' | 'en' | 'ar';
   created_at: Date;
   updated_at: Date;
 }

@@ -33,6 +33,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // Import custom middleware
 import { errorMiddleware } from './middlewares/errorMiddleware';
 import { authMiddleware } from './middlewares/authMiddleware';
+import { requireRole } from './middlewares/roleMiddleware';
 
 // Make db available to all routes and middleware
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -101,7 +102,16 @@ import { PaymentService } from './services/paymentService';
 import { PaymentRepository } from './repositories/paymentRepository';
 import { createPaymentProvider } from './services/paymentProvider';
 import { NotificationService, createNotificationProvider } from './services/notificationService';
+import { NotificationController } from './controllers/notificationController';
+import { createNotificationRoutes } from './routes/notificationRoutes';
 import { createPaymentRoutes } from './routes/paymentRoutes';
+import { AnalyticsController } from './controllers/analyticsController';
+import { AnalyticsService } from './services/analyticsService';
+import { AnalyticsRepository } from './repositories/analyticsRepository';
+import { createAnalyticsRoutes } from './routes/analyticsRoutes';
+import { AiController } from './controllers/aiController';
+import { AiService } from './services/aiService';
+import { createAiRoutes } from './routes/aiRoutes';
 
 // Initialize services and controllers
 const userRepository = new UserRepository(pool);
@@ -140,15 +150,22 @@ const documentService = new DocumentService(
   new PdfService()
 );
 const documentController = new DocumentController(documentService);
+const notificationService = new NotificationService(pool, createNotificationProvider());
 const paymentService = new PaymentService(
   pool,
   new PaymentRepository(pool),
   orderRepository,
   userRepository,
   createPaymentProvider(),
-  new NotificationService(pool, createNotificationProvider())
+  notificationService
 );
 const paymentController = new PaymentController(paymentService);
+const analyticsService = new AnalyticsService(new AnalyticsRepository(pool));
+const analyticsController = new AnalyticsController(analyticsService);
+const aiController = new AiController(
+  new AiService(process.env.AI_SERVICE_URL || 'http://127.0.0.1:5000'),
+  analyticsService
+);
 
 // Setup routes
 const authRouter = createAuthRoutes(authController);
@@ -183,7 +200,12 @@ app.use('/api/v1/shipments', authMiddleware, shipmentRouter);
 
 // Import-Export routes
 const importExportRouter = createImportExportRoutes(pool);
-app.use('/api/v1/import-export', importExportRouter);
+app.use(
+  '/api/v1/import-export',
+  authMiddleware,
+  requireRole('ADMIN', 'CLIENT', 'FOURNISSEUR', 'COMMERCANT'),
+  importExportRouter
+);
 app.use('/api/v1/import-export', authMiddleware, createImportExportDocumentRoutes(documentController));
 
 app.use('/api/v1/documents', authMiddleware, createDocumentRoutes(documentController));
@@ -192,6 +214,9 @@ app.use('/api/v1/formalities', authMiddleware, createFormalityRoutes(documentCon
 
 app.post('/api/v1/payments/webhook', paymentController.webhook);
 app.use('/api/v1/payments', authMiddleware, createPaymentRoutes(paymentController));
+app.use('/api/v1/notifications', authMiddleware, createNotificationRoutes(new NotificationController(notificationService)));
+app.use('/api/v1/analytics', authMiddleware, createAnalyticsRoutes(analyticsController));
+app.use('/api/v1/ai', authMiddleware, createAiRoutes(aiController));
 
 // Test protected routes
 app.use('/api/v1/test', authMiddleware, testProtectedRoutes);

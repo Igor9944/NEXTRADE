@@ -67,3 +67,32 @@ export const authMiddleware = async (
     });
   }
 };
+
+export const optionalAuthMiddleware = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const token = extractToken(req);
+    if (!token) {
+      return next();
+    }
+    const decoded = verifyToken(token);
+    if (!decoded) {
+      return next();
+    }
+    const userRepository = new UserRepository((req as any).db);
+    const user = await userRepository.findById(decoded.id);
+    if (user) {
+      req.user = {
+        id: user.id_user,
+        email: user.email,
+        role: user.role
+      };
+    }
+    return next();
+  } catch {
+    return next();
+  }
+};

@@ -201,7 +201,8 @@ Chaque service possède son propre fichier `.env` (à partir du fichier `.env.ex
 - `npm run dev` : Démarre le serveur de développement avec rechargement automatique
 - `npm run build` : Compile TypeScript en JavaScript (dans le répertoire `dist/`)
 - `npm start` : Démarre le serveur de production (JavaScript compilé)
-- `npm test` : Exécute les tests (actuellement un espace réservé)
+- `npm test` : Jest (`npx jest`) — tests d’intégration API (auth, commandes, paiement, documents, analytics, i18n). Ce n’est **pas** un placeholder.
+- `npm run lint` : **non configuré** (ce n’est pas un échec applicatif)
 
 ### Frontend
 
@@ -212,7 +213,8 @@ Chaque service possède son propre fichier `.env` (à partir du fichier `.env.ex
 ### Mobile
 
 - `flutter pub get` : Récupère les dépendances
-- `flutter run` : Exécute l'application sur un émulateur ou un appareil
+- `flutter test` : tests unitaires modèles / erreurs HTTP
+- `flutter run --dart-define=API_BASE_URL=http://127.0.0.1:3000`
 - `flutter build apk` : Construit un APK Android
 - `flutter build ios` : Construit un IPA iOS (nécessite macOS et Xcode)
 
@@ -244,22 +246,37 @@ Chaque service possède son propre fichier `.env` (à partir du fichier `.env.ex
 
 ## État actuel du projet
 
-**PHASE ACTUELLE : SEMAINE 1 — FONDEMENT TECHNIQUE**
+**PHASE : correction finale avant soutenance (runtime web + API)**
 
-À la fin de la semaine 1, le projet possède :
+Le README Semaine 1 ci-dessus est historique. L’état réel :
 
-- ✅ Un workspace NexTrade propre
-- ✅ Un référentiel Git initialisé
-- ✅ Un backend Node.js/TypeScript/Express fonctionnel avec route `/health`
-- ✅ Une connexion PostgreSQL préparée (scripts et configuration prêts)
-- ✅ Un frontend React/TypeScript/Tailwind fonctionnel avec une page de démarrage
-- ✅ Un projet Flutter initialisé (structure prête, nécessite l'installation de Flutter)
-- ✅ Un service Python IA initialisé avec endpoint `/health`
-- ✅ Une documentation technique complète (`docs/`)
-- ✅ Des fichiers `.env.example` propres dans chaque service
-- ✅ Des scripts de démarrage et de vérification (`scripts/`)
-- ✅ Une structure de projet cohérente
-- ✅ Une procédure claire permettant à un autre développeur de cloner et de démarrer le projet
+- Backend Express : auth JWT, catalogue, panier, commandes, stock, import-export **authentifié**, shipments, documents, paiement sandbox HMAC, notifications `GET /api/v1/notifications`, analytics, IA locale
+- Frontend React : login, catalogue + stock, commandes, **dashboard admin monté**, import-export, documents, paiement DEMO (initiate + confirm HMAC serveur), i18n FR/EN/AR, langues UI/IA indépendantes (login n’écrase pas le localStorage)
+- Mobile Flutter : login, catalogue, panier/commande, suivi (JWT). `flutter run` exige une plateforme générée (linux/web/android) ; **non déployé** sur store
+- PostgreSQL + seeds `database/seeds/04_demo_analytics.sql`
+- Paiement : sandbox interne uniquement. Stripe **non** utilisé sans clés
+- Déploiement cloud : **NON DÉPLOYÉ**. Démo = `127.0.0.1` (voir `docs/demo-script.md`)
+
+### Comptes DEMO (local)
+
+Mot de passe : `ClientPass123!` (hashé dans le seed, **pas** un secret de production)
+
+| Rôle | Email |
+| --- | --- |
+| ADMIN | demo.admin@nextrade.test |
+| CLIENT | demo.client@nextrade.test |
+| CLIENT B | demo.clientb@nextrade.test |
+| FOURNISSEUR | demo.supplier@nextrade.test |
+| TRANSPORTEUR | demo.carrier@nextrade.test |
+| COMMERCANT | demo.commercant@nextrade.test |
+
+### Limitations
+
+- Pas d’écran Achats/Ventes dédié au-delà de commandes/catalogue
+- PDF facture arabe RTL **non** supporté
+- `frontend npm test` : script placeholder (`no test specified`)
+- Notifications : API + page liste ; email via Mailpit en DEV si SMTP 1025 est up
+- Gros COMMERCANT : prix de gros si JWT rôle COMMERCANT (pas de table « vérifié » séparée pour ce rôle)
 
 ## Roadmap
 

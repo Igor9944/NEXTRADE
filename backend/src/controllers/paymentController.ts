@@ -45,6 +45,22 @@ export class PaymentController {
     }
   };
 
+  confirmSandbox = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const result = await this.paymentService.confirmSandboxDemo(this.actor(req), this.param(req, 'id'));
+      return res.status(200).json({
+        status: 'success',
+        data: {
+          duplicate: result.duplicate,
+          notification: result.notification,
+          transaction: result.transaction
+        }
+      });
+    } catch (error) {
+      return this.handle(error, res, next);
+    }
+  };
+
   getById = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       const transaction = await this.paymentService.getTransaction(this.actor(req), this.param(req, 'id'));

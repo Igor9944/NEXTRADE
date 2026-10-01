@@ -52,8 +52,7 @@
     "testEnvironment": "node",
     "setupFilesAfterEnv": [],
     "testMatch": [
-      "**/__tests__/**/*.+(ts|tsx|js)",
-      "**/?(*.)+(spec|test).+(ts|tsx|js)"
+      "<rootDir>/tests/**/*.test.ts"
     ],
     "collectCoverage": true,
     "coverageDirectory": "coverage",

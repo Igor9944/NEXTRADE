@@ -8,6 +8,7 @@ NexTrade follows a modular architecture with separate concerns for frontend, bac
 
 ### Frontend Web
 - Technology: React + TypeScript + Tailwind CSS
+- Routes: `/login`, `/catalog`, `/orders`, `/admin/dashboard` (ADMIN, analytics réels), `/admin/suppliers`, `/import-export`, `/shipments`, `/documents`, `/payments`, `/notifications`
 - Responsibility: User interface for web administrators and users
 - Communication: REST API calls to the backend
 
@@ -21,8 +22,11 @@ NexTrade follows a modular architecture with separate concerns for frontend, bac
 
 ### Mobile Application
 - Technology: Flutter + Dart
-- Responsibility: Mobile user interface for users on the go
-- Communication: REST API calls to the backend (same endpoints as frontend, potentially with different authentication)
+- Screens: login, catalogue, produit, panier/commande, suivi d’expédition
+- HTTP: `ApiClient` unique, JWT en stockage sécurisé, timeouts 15 s
+- Business rules: none on device (prices and totals from API)
+
+See `docs/mobile.md`.
 
 ### AI Service
 - Technology: Python + Flask (or FastAPI)
@@ -66,13 +70,20 @@ NexTrade follows a modular architecture with separate concerns for frontend, bac
 ## Security Considerations
 
 - The backend implements Helmet.js for basic security headers.
-- CORS is configured to allow only trusted origins.
+- Import-export API (`/api/v1/import-export`) : JWT obligatoire. Sans token → 401. TRANSPORTEUR → 403. ADMIN / CLIENT / FOURNISSEUR / COMMERCANT autorisés.
 - Environment variables are used to store sensitive information (never committed to version control).
 - Future weeks will add authentication, authorization, and encryption.
 
 ## Scalability
 
 - The backend is designed to be stateless, allowing horizontal scaling behind a load balancer.
+- Déploiement de démonstration **local** : API `:3000`, web `:5173`, IA `:5000`, PostgreSQL `:5432`. `docker-compose` fournit Postgres + Mailpit ; backend/IA/web **NON DÉPLOYÉS** en cloud dans cette version.
+
+## Storage / Payment / Notifications
+
+- Storage: fichiers locaux (`STORAGE_DRIVER=local`)
+- Payment: sandbox HMAC (pas de banque réelle)
+- Notifications: SMTP Mailpit en DEV
 - The AI service can be scaled independently based on computational demands.
 - PostgreSQL can be scaled using read replicas or sharding strategies (to be implemented in later weeks).
 

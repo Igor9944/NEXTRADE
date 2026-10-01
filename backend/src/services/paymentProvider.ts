@@ -70,6 +70,18 @@ export class SignedSandboxPaymentProvider implements PaymentProvider {
     };
   }
 
+  buildSignedEvent(provider_reference: string, event_id: string, outcome: 'SUCCESS' | 'FAILED') {
+    const raw = Buffer.from(JSON.stringify({ provider_reference, event_id, outcome }), 'utf8');
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const v1 = createHmacSignature(this.webhookSecret, timestamp, raw);
+    return {
+      raw,
+      headers: {
+        'x-nextrade-signature': `t=${timestamp},v1=${v1}`
+      } as Record<string, string>
+    };
+  }
+
   async refund(): Promise<void> {
     throw new AppError('Refund is not implemented', 501);
   }

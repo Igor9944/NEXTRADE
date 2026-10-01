@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login } from '../../services/authService';
+import { useI18n } from '../../i18n/I18nProvider';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -18,12 +20,12 @@ const LoginPage: React.FC = () => {
       if (user.role === 'TRANSPORTEUR') {
         navigate('/shipments/assigned');
       } else if (user.role === 'ADMIN') {
-        navigate('/shipments');
+        navigate('/admin/dashboard');
       } else {
-        navigate('/shipments/my');
+        navigate('/catalog');
       }
     } catch (err: any) {
-      setError(err.message || 'Connexion impossible');
+      setError(err.message || t('error'));
     } finally {
       setLoading(false);
     }
@@ -31,35 +33,19 @@ const LoginPage: React.FC = () => {
 
   return (
     <div className="max-w-md mx-auto bg-white rounded-lg shadow p-6">
-      <h1 className="text-xl font-bold mb-4">Connexion NexTrade</h1>
+      <h1 className="text-xl font-bold mb-4">{t('loginTitle')}</h1>
       {error && <p className="mb-3 text-red-600">{error}</p>}
       <form onSubmit={handleSubmit} className="space-y-4">
         <label className="block">
-          <span className="text-sm text-gray-600">Email</span>
-          <input
-            className="mt-1 w-full border rounded px-3 py-2"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
+          <span className="text-sm text-gray-600">{t('email')}</span>
+          <input className="mt-1 w-full border rounded px-3 py-2" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         </label>
         <label className="block">
-          <span className="text-sm text-gray-600">Mot de passe</span>
-          <input
-            className="mt-1 w-full border rounded px-3 py-2"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
+          <span className="text-sm text-gray-600">{t('password')}</span>
+          <input className="mt-1 w-full border rounded px-3 py-2" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </label>
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-blue-700 text-white rounded py-2 font-semibold disabled:opacity-50"
-        >
-          {loading ? 'Connexion...' : 'Se connecter'}
+        <button type="submit" disabled={loading} className="w-full bg-blue-700 text-white rounded py-2 font-semibold disabled:opacity-50">
+          {loading ? t('loading') : t('submit')}
         </button>
       </form>
     </div>

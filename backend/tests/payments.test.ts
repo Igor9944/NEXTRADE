@@ -344,4 +344,76 @@ describe('Payments and notifications', () => {
     expect(orderFailed.body.data.statut).not.toBe('PAYEE');
     expect(mailer.emails).toHaveLength(1);
   });
+
+  it('confirms sandbox payment through signed server-side HMAC without client SUCCESS', async () => {
+    const register = async (payload: object) => {
+      const response = await request(app).post('/api/v1/auth/register').send(payload);
+      expect(response.status).toBe(201);
+      return response.body;
+    };
+    const suffix2 = `${Date.now()}-sbx`;
+    const client = await register({
+      email: `pay.sbx.${suffix2}@nextrade.test`,
+      password: 'PayPass123!',
+      role: 'CLIENT',
+      nom_entreprise: 'Pay Sbx'
+    });
+    const supplier = await register({
+      email: `sup.sbx.${suffix2}@nextrade.test`,
+      password: 'PayPass123!',
+      role: 'FOURNISSEUR',
+      nom_entreprise: 'Sup Sbx'
+    });
+    const categoryResponse = await request(app)
+      .post('/api/v1/categories')
+      .set('Authorization', `Bearer ${supplier.accessToken}`)
+      .send({ nom: `Pay Sbx Cat ${suffix2}`, description: 'pay' });
+    expect(categoryResponse.status).toBe(201);
+    const productResponse = await request(app)
+      .post('/api/v1/products')
+      .set('Authorization', `Bearer ${supplier.accessToken}`)
+      .send({
+        nom: `Pay Sbx P ${suffix2}`,
+        description: 'p',
+        categorie: categoryResponse.body.data.nom,
+        prix_detail: 12,
+        prix_gros: 10
+      });
+    expect(productResponse.status).toBe(201);
+    await pool.query(
+      'INSERT INTO inventory (id_product, quantite_disponible, seuil_alerte) VALUES ($1, $2, $3) ON CONFLICT (id_product) DO UPDATE SET quantite_disponible = EXCLUDED.quantite_disponible',
+      [productResponse.body.data.id_product, 20, 2]
+    );
+    await request(app)
+      .post('/api/v1/cart/items')
+      .set('Authorization', `Bearer ${client.accessToken}`)
+      .send({ productId: productResponse.body.data.id_product, quantity: 1 });
+    const order = await request(app)
+      .post('/api/v1/orders')
+      .set('Authorization', `Bearer ${client.accessToken}`)
+      .send({ adresse_livraison: 'Lome' });
+    expect(order.status).toBe(201);
+    const initiated = await request(app)
+      .post('/api/v1/payments')
+      .set('Authorization', `Bearer ${client.accessToken}`)
+      .send({ order_id: order.body.data.id_order });
+    expect(initiated.status).toBe(201);
+    const txId = initiated.body.data.transaction.id_transaction;
+    const confirmed = await request(app)
+      .post(`/api/v1/payments/${txId}/sandbox-confirm`)
+      .set('Authorization', `Bearer ${client.accessToken}`)
+      .send({});
+    expect(confirmed.status).toBe(200);
+    expect(confirmed.body.data.transaction.statut_transaction).toBe('VALIDEE');
+    const paid = await request(app)
+      .get(`/api/v1/orders/${order.body.data.id_order}`)
+      .set('Authorization', `Bearer ${client.accessToken}`);
+    expect(paid.body.data.statut).toBe('PAYEE');
+    const again = await request(app)
+      .post(`/api/v1/payments/${txId}/sandbox-confirm`)
+      .set('Authorization', `Bearer ${client.accessToken}`)
+      .send({});
+    expect(again.status).toBe(200);
+    expect(again.body.data.duplicate).toBe(true);
+  });
 });
