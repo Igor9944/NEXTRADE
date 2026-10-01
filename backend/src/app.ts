@@ -4,53 +4,113 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { Pool } from 'pg';
 
-// Load environment variables
 dotenv.config();
 
-// Database connection pool
-export const pool = new Pool({
+const nodeEnv = process.env.NODE_ENV || 'development';
+const isProduction = nodeEnv === 'production';
+const jwtSecret = process.env.JWT_SECRET || '';
+
+if (isProduction && jwtSecret.length < 32) {
+  throw new Error('JWT_SECRET must be set to at least 32 characters in production');
+}
+
+const allowedOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const poolConfig = {
   host: process.env.DB_HOST,
   port: parseInt(process.env.DB_PORT || '5432', 10),
   database: process.env.DB_NAME,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
-});
+  max: parseInt(process.env.DB_POOL_MAX || '20', 10),
+  idleTimeoutMillis: 30_000,
+  connectionTimeoutMillis: 5_000
+};
+
+export const pool = new Pool(poolConfig);
 
 const app: Application = express();
 
-// Middleware
+app.disable('x-powered-by');
+
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
-app.use(cors());
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Origin not allowed by CORS'));
+  },
+  credentials: true
+}));
+
 app.use((req: Request, res: Response, next: NextFunction) => {
   if (req.originalUrl === '/api/v1/payments/webhook') {
-    return express.raw({ type: 'application/json' })(req, res, next);
+    return express.raw({ type: 'application/json', limit: '1mb' })(req, res, next);
   }
-  return express.json()(req, res, next);
+  return express.json({ limit: '1mb' })(req, res, next);
 });
 
-// Import custom middleware
+// Lightweight in-process protection for auth endpoints.
+// For multi-instance production deployments, use a shared rate limiter at the edge.
+const authAttempts = new Map<string, { count: number; resetAt: number }>();
+const AUTH_WINDOW_MS = 15 * 60 * 1000;
+const AUTH_MAX_ATTEMPTS = 30;
+
+const authRateLimit = (req: Request, res: Response, next: NextFunction) => {
+  const key = req.ip || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  const current = authAttempts.get(key);
+
+  if (!current || current.resetAt <= now) {
+    authAttempts.set(key, { count: 1, resetAt: now + AUTH_WINDOW_MS });
+    return next();
+  }
+
+  if (current.count >= AUTH_MAX_ATTEMPTS) {
+    return res.status(429).json({
+      status: 'error',
+      message: 'Too many authentication attempts. Please try again later.'
+    });
+  }
+
+  current.count += 1;
+  return next();
+};
+
 import { errorMiddleware } from './middlewares/errorMiddleware';
 import { authMiddleware } from './middlewares/authMiddleware';
 import { requireRole } from './middlewares/roleMiddleware';
 
-// Make db available to all routes and middleware
 app.use((req: Request, res: Response, next: NextFunction) => {
   (req as any).app = app;
   (req as any).db = pool;
   next();
 });
 
-// Health check route
-app.get('/health', (req: Request, res: Response) => {
-  res.status(200).json({
-    status: 'success',
-    message: 'API NexTrade opérationnelle'
-  });
+app.get('/health', async (_req: Request, res: Response) => {
+  try {
+    await pool.query('SELECT 1');
+    res.status(200).json({
+      status: 'success',
+      message: 'API NexTrade opérationnelle',
+      database: 'connected'
+    });
+  } catch {
+    res.status(503).json({
+      status: 'error',
+      message: 'API NexTrade indisponible',
+      database: 'unavailable'
+    });
+  }
 });
 
-// Import components
 import { AuthController } from './controllers/authController';
 import { AuthService } from './services/authService';
 import { UserRepository } from './repositories/userRepository';
@@ -113,7 +173,6 @@ import { AiController } from './controllers/aiController';
 import { AiService } from './services/aiService';
 import { createAiRoutes } from './routes/aiRoutes';
 
-// Initialize services and controllers
 const userRepository = new UserRepository(pool);
 const authService = new AuthService(userRepository);
 const authController = new AuthController(authService);
@@ -167,29 +226,23 @@ const aiController = new AiController(
   analyticsService
 );
 
-// Setup routes
 const authRouter = createAuthRoutes(authController);
-app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/auth', authRateLimit, authRouter);
 
-// Supplier routes
 const supplierRouter = createSupplierRoutes(supplierController);
 app.use('/api/v1/suppliers', supplierRouter);
 
-// Profile routes
 const profileRouter = createProfileRoutes(profileController);
 app.use('/api/v1/profile', profileRouter);
 
-// Client routes
 const clientRouter = createClientRoutes(clientController);
 app.use('/api/v1/clients', clientRouter);
 
-// Catalogue routes
 const categoryRouter = createCategoryRoutes(categoryController);
 app.use('/api/v1/categories', categoryRouter);
 const productRouter = createProductRoutes(productController);
 app.use('/api/v1/products', productRouter);
 
-// Cart and order routes
 const cartRouter = createCartRoutes(cartController);
 app.use('/api/v1/cart', authMiddleware, cartRouter);
 const orderRouter = createOrderRoutes(orderController, documentController, paymentController);
@@ -198,7 +251,6 @@ app.use('/api/v1/orders', authMiddleware, orderRouter);
 const shipmentRouter = createShipmentRoutes(shipmentController);
 app.use('/api/v1/shipments', authMiddleware, shipmentRouter);
 
-// Import-Export routes
 const importExportRouter = createImportExportRoutes(pool);
 app.use(
   '/api/v1/import-export',
@@ -218,10 +270,8 @@ app.use('/api/v1/notifications', authMiddleware, createNotificationRoutes(new No
 app.use('/api/v1/analytics', authMiddleware, createAnalyticsRoutes(analyticsController));
 app.use('/api/v1/ai', authMiddleware, createAiRoutes(aiController));
 
-// Test protected routes
 app.use('/api/v1/test', authMiddleware, testProtectedRoutes);
 
-// 404 handler
 app.use((req: Request, res: Response) => {
   res.status(404).json({
     status: 'error',
@@ -229,7 +279,6 @@ app.use((req: Request, res: Response) => {
   });
 });
 
-// Error handler
 app.use(errorMiddleware);
 
 export default app;
