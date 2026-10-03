@@ -1,6 +1,7 @@
 import app, { pool } from './app';
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+let server: ReturnType<typeof app.listen> | null = null;
 
 // Test database connection
 const testDatabaseConnection = async () => {
@@ -15,8 +16,8 @@ const testDatabaseConnection = async () => {
 
 const startServer = async () => {
   await testDatabaseConnection();
-  
-  const server = app.listen(PORT, () => {
+
+  server = app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
   });
 };
@@ -24,6 +25,12 @@ const startServer = async () => {
 // Handle graceful shutdown
 const shutdown = async (signal: string) => {
   console.log(`Received ${signal}; shutting down gracefully...`);
+  if (!server) {
+    await pool.end();
+    process.exit(0);
+    return;
+  }
+
   server.close(async () => {
     await pool.end();
     process.exit(0);

@@ -32,6 +32,7 @@ import { PaymentRepository } from '../src/repositories/paymentRepository';
 import { createPaymentRoutes } from '../src/routes/paymentRoutes';
 import { SignedSandboxPaymentProvider, createHmacSignature } from '../src/services/paymentProvider';
 import { InMemoryNotificationProvider, NotificationService } from '../src/services/notificationService';
+import { provisionTestRole } from './helpers/testRoles';
 
 dotenv.config();
 
@@ -194,8 +195,8 @@ describe('Payments and notifications', () => {
     const supplier = await register(supplierUser);
     clientToken = client.accessToken;
     clientBToken = clientB.accessToken;
-    adminToken = admin.accessToken;
-    supplierToken = supplier.accessToken;
+    adminToken = await provisionTestRole(pool, admin.user.id, 'ADMIN');
+    supplierToken = await provisionTestRole(pool, supplier.user.id, 'FOURNISSEUR');
 
     const categoryResponse = await request(app)
       .post('/api/v1/categories')
@@ -364,14 +365,15 @@ describe('Payments and notifications', () => {
       role: 'FOURNISSEUR',
       nom_entreprise: 'Sup Sbx'
     });
+    const supplierToken = await provisionTestRole(pool, supplier.user.id, 'FOURNISSEUR');
     const categoryResponse = await request(app)
       .post('/api/v1/categories')
-      .set('Authorization', `Bearer ${supplier.accessToken}`)
+      .set('Authorization', `Bearer ${supplierToken}`)
       .send({ nom: `Pay Sbx Cat ${suffix2}`, description: 'pay' });
     expect(categoryResponse.status).toBe(201);
     const productResponse = await request(app)
       .post('/api/v1/products')
-      .set('Authorization', `Bearer ${supplier.accessToken}`)
+      .set('Authorization', `Bearer ${supplierToken}`)
       .send({
         nom: `Pay Sbx P ${suffix2}`,
         description: 'p',

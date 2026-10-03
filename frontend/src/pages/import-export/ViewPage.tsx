@@ -26,19 +26,19 @@ const ViewPage: React.FC = () => {
 
   useEffect(() => {
     if (id) {
-      fetchOperation();
+      fetchOperation(id);
     }
   }, [id]);
 
-  const fetchOperation = async () => {
+  const fetchOperation = async (operationId: string) => {
     setLoading(true);
     setError(null);
     setSuccess(null);
     try {
-      const result = await importExportService.getOperationById(id);
+      const result = await importExportService.getOperationById(operationId);
       setOperation(result);
       try {
-        const files = await documentService.listOperationDocuments(id);
+        const files = await documentService.listOperationDocuments(operationId);
         setDocs(files.data.documents);
       } catch {
         setDocs([]);
@@ -51,7 +51,7 @@ const ViewPage: React.FC = () => {
   };
 
   const handleStatusChange = async () => {
-    if (!newStatus) return;
+    if (!newStatus || !id) return;
     setLoading(true);
     try {
       await importExportService.updateOperationStatus(id, newStatus);
@@ -298,7 +298,7 @@ const ViewPage: React.FC = () => {
                               const next = formality.statut === 'A_FAIRE' ? 'EN_COURS' : formality.statut === 'EN_COURS' ? 'TERMINE' : 'EN_COURS';
                               try {
                                 await documentService.updateFormality(formality.id_formality, next);
-                                fetchOperation();
+                                if (id) fetchOperation(id);
                               } catch (err: any) {
                                 setError(err.message);
                               }
@@ -309,7 +309,7 @@ const ViewPage: React.FC = () => {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(formality.created_at).toLocaleString()}
+                        {formality.created_at ? new Date(formality.created_at).toLocaleString() : '—'}
                       </td>
                     </tr>
                   ))}

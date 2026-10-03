@@ -1,9 +1,18 @@
 import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Link, useNavigate, useLocation } from 'react-router-dom';
+import {
+  BrowserRouter,
+  Link,
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+  useLocation
+} from 'react-router-dom';
 import ListPage from './pages/import-export/ListPage';
 import CreatePage from './pages/import-export/CreatePage';
 import ViewPage from './pages/import-export/ViewPage';
 import LoginPage from './pages/auth/LoginPage';
+import RegisterPage from './pages/auth/RegisterPage';
 import ClientTrackingPage from './pages/shipments/ClientTrackingPage';
 import TransporterListPage from './pages/shipments/TransporterListPage';
 import AdminListPage from './pages/shipments/AdminListPage';
@@ -17,65 +26,197 @@ import PayPage from './pages/payments/PayPage';
 import CatalogPage from './pages/catalog/CatalogPage';
 import ProductPage from './pages/catalog/ProductPage';
 import OrdersPage from './pages/orders/OrdersPage';
-import { clearSession, getSessionUser } from './auth/session';
+import { clearSession, getSessionUser, SessionUser, UserRole } from './auth/session';
 import { useI18n } from './i18n/I18nProvider';
 import { LanguageSwitcher } from './components/LanguageSwitcher';
-import { AssistantPanel } from './components/AssistantPanel';
+import { AssistantPanel, AssistantToggle } from './components/AssistantPanel';
 import DashboardPage from './pages/admin/DashboardPage';
 import SuppliersPage from './pages/admin/SuppliersPage';
 import NotificationsPage from './pages/notifications/NotificationsPage';
+import { LandingPage, PublicLayout } from './pages/public/PublicPages';
 
-function Layout({ children }: { children: React.ReactNode }) {
-  const navigate = useNavigate();
+type NavigationItem = { path: string; label: string };
+
+const roleHome = (role: UserRole): string => {
+  if (role === 'ADMIN') return '/admin/dashboard';
+  if (role === 'TRANSPORTEUR') return '/shipments/assigned';
+  return '/catalog';
+};
+
+function roleCanVisitPath(role: UserRole, path: string): boolean {
+  path = path.length > 1 ? path.replace(/\/+$/, '') : path;
+  if (path.startsWith('/admin/')) return role === 'ADMIN';
+  if (path === '/shipments' || path === '/shipments/create') return role === 'ADMIN';
+  if (path === '/shipments/assigned') return role === 'TRANSPORTEUR';
+  if (path === '/shipments/my') return role === 'CLIENT' || role === 'COMMERCANT';
+  if (/^\/shipments\/[^/]+$/.test(path)) {
+    return ['ADMIN', 'TRANSPORTEUR', 'CLIENT', 'COMMERCANT'].includes(role);
+  }
+  if (path === '/payments') return role === 'CLIENT' || role === 'ADMIN';
+  if (path === '/orders') return ['CLIENT', 'COMMERCANT', 'ADMIN'].includes(role);
+  if (path === '/notifications') return ['ADMIN', 'CLIENT', 'FOURNISSEUR', 'COMMERCANT', 'TRANSPORTEUR'].includes(role);
+  if (path === '/documents' || path.startsWith('/documents/') || path.startsWith('/invoices/')) {
+    return ['ADMIN', 'CLIENT', 'FOURNISSEUR', 'COMMERCANT', 'TRANSPORTEUR'].includes(role);
+  }
+  if (path.startsWith('/import-export')) {
+    return ['ADMIN', 'CLIENT', 'FOURNISSEUR', 'COMMERCANT'].includes(role);
+  }
+  if (path.startsWith('/catalog')) {
+    return ['CLIENT', 'COMMERCANT', 'FOURNISSEUR', 'ADMIN'].includes(role);
+  }
+  return false;
+}
+
+function PublicEntry() {
+  const user = getSessionUser();
+  return user
+    ? <Navigate to={roleHome(user.role)} replace />
+    : <PublicLayout><LandingPage /></PublicLayout>;
+}
+
+function PublicLogin() {
+  const user = getSessionUser();
+  return user
+    ? <Navigate to={roleHome(user.role)} replace />
+    : (
+      <PublicLayout showSignIn={false}>
+        <div className="mx-auto max-w-7xl px-5 py-14 sm:px-8 sm:py-20">
+          <LoginPage />
+        </div>
+      </PublicLayout>
+    );
+}
+
+function PublicRegister() {
+  const user = getSessionUser();
+  return user
+    ? <Navigate to={roleHome(user.role)} replace />
+    : (
+      <PublicLayout showSignIn={false}>
+        <div className="mx-auto max-w-7xl px-5 py-14 sm:px-8 sm:py-20">
+          <RegisterPage />
+        </div>
+      </PublicLayout>
+    );
+}
+
+function AssistantEntry() {
+  const location = useLocation();
+  const user = getSessionUser();
+  return user
+    ? <Navigate to={roleHome(user.role)} replace state={{ openAssistant: true }} />
+    : <Navigate to="/login" replace state={{ from: location }} />;
+}
+
+function RequireAuth() {
+  const location = useLocation();
+  const user = getSessionUser();
+  if (!user) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+  if (!roleCanVisitPath(user.role, location.pathname)) {
+    return <Navigate to={roleHome(user.role)} replace />;
+  }
+  return <Outlet />;
+}
+
+function privateNavigation(user: SessionUser, t: (key: string) => string): NavigationItem[] {
+  const byRole: Record<UserRole, Array<[string, string]>> = {
+    ADMIN: [
+      ['/admin/dashboard', 'navDashboard'],
+      ['/admin/suppliers', 'navSuppliers'],
+      ['/shipments', 'navShipments'],
+      ['/catalog', 'navCatalog'],
+      ['/orders', 'navOrders'],
+      ['/import-export', 'navImportExport'],
+      ['/documents', 'navDocuments'],
+      ['/payments', 'navPayments'],
+      ['/notifications', 'navNotifications']
+    ],
+    CLIENT: [
+      ['/catalog', 'navCatalog'],
+      ['/orders', 'navOrders'],
+      ['/import-export', 'navImportExport'],
+      ['/shipments/my', 'navTracking'],
+      ['/documents', 'navDocuments'],
+      ['/payments', 'navPayments'],
+      ['/notifications', 'navNotifications']
+    ],
+    FOURNISSEUR: [
+      ['/catalog', 'navCatalog'],
+      ['/import-export', 'navImportExport'],
+      ['/documents', 'navDocuments'],
+      ['/notifications', 'navNotifications']
+    ],
+    COMMERCANT: [
+      ['/catalog', 'navCatalog'],
+      ['/orders', 'navOrders'],
+      ['/shipments/my', 'navTracking'],
+      ['/import-export', 'navImportExport'],
+      ['/documents', 'navDocuments'],
+      ['/notifications', 'navNotifications']
+    ],
+    TRANSPORTEUR: [
+      ['/shipments/assigned', 'navTours'],
+      ['/documents', 'navDocuments'],
+      ['/notifications', 'navNotifications']
+    ]
+  };
+
+  return (byRole[user.role] || []).map(([path, label]) => ({ path, label: t(label) }));
+}
+
+function AuthenticatedLayout() {
   const location = useLocation();
   const user = getSessionUser();
   const { t } = useI18n();
-  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(
+    () => (location.state as { openAssistant?: boolean } | null)?.openAssistant === true
+  );
 
+  if (!user) return <Navigate to="/login" replace state={{ from: location }} />;
+
+  const navigation = privateNavigation(user, t);
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <aside className="w-56 shrink-0 bg-white border-e p-4 space-y-4">
-        <Link to="/" className="block text-lg font-bold text-gray-800">{t('appName')}</Link>
-        <nav className="flex flex-col gap-2 text-sm">
-          <Link to="/catalog" className="text-blue-700">{t('navCatalog')}</Link>
-          {user && <Link to="/orders" className="text-blue-700">{t('navOrders')}</Link>}
-          {user && <Link to="/import-export" className="text-blue-700">{t('navImportExport')}</Link>}
-          {user?.role === 'ADMIN' && <Link to="/admin/dashboard" className="text-blue-700">{t('navDashboard')}</Link>}
-          {user?.role === 'ADMIN' && <Link to="/admin/suppliers" className="text-blue-700">{t('navSuppliers')}</Link>}
-          {user?.role === 'ADMIN' && <Link to="/shipments" className="text-blue-700">{t('navShipments')}</Link>}
-          {user?.role === 'CLIENT' && <Link to="/shipments/my" className="text-blue-700">{t('navTracking')}</Link>}
-          {user?.role === 'TRANSPORTEUR' && <Link to="/shipments/assigned" className="text-blue-700">{t('navTours')}</Link>}
-          {user && <Link to="/documents" className="text-blue-700">{t('navDocuments')}</Link>}
-          {user && <Link to="/notifications" className="text-blue-700">{t('navNotifications')}</Link>}
-          {(user?.role === 'CLIENT' || user?.role === 'ADMIN') && (
-            <Link to="/payments" className="text-blue-700">{t('navPayments')}</Link>
-          )}
-          {user && (
-            <button className="text-start text-blue-700" onClick={() => setAssistantOpen(true)}>
-              {t('navAssistant')}
-            </button>
-          )}
+    <div className="relative min-h-screen bg-gray-50 md:flex">
+      <aside className="w-full shrink-0 border-b bg-white p-4 md:min-h-screen md:w-60 md:border-b-0 md:border-e">
+        <a className="sr-only focus:not-sr-only focus:mb-4 focus:block focus:bg-white focus:p-3" href="#private-main">
+          {t('skipToContent')}
+        </a>
+        <Link to={roleHome(user.role)} className="mb-6 block text-lg font-bold text-gray-800">
+          {t('appName')}
+        </Link>
+        <nav aria-label={t('privateNavigation')} className="flex gap-3 overflow-x-auto pb-2 text-sm md:flex-col md:overflow-visible">
+          {navigation.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              aria-current={location.pathname === item.path ? 'page' : undefined}
+              className={`shrink-0 text-blue-700 ${location.pathname === item.path ? 'font-semibold underline underline-offset-4' : ''}`}
+            >
+              {item.label}
+            </Link>
+          ))}
         </nav>
-        <LanguageSwitcher />
-        {user ? (
+        <div className="mt-5"><LanguageSwitcher /></div>
+        <div className="mt-4 flex items-center gap-3 md:block">
+          <span className="text-xs text-gray-500">{user.role}</span>
           <button
-            className="text-sm text-gray-600"
+            className="text-sm text-gray-600 underline underline-offset-4"
             onClick={() => {
               clearSession();
-              navigate('/login');
+              window.location.assign('/login');
             }}
           >
-            {t('logout')} ({user.role})
+            {t('logout')}
           </button>
-        ) : (
-          <Link to="/login" className="text-sm text-blue-700">{t('login')}</Link>
-        )}
+        </div>
       </aside>
-      <div className="flex-1 min-w-0">
-        <main className="max-w-6xl mx-auto px-4 py-6">{children}</main>
-      </div>
+      <main id="private-main" tabIndex={-1} className="min-w-0 flex-1 px-4 py-6 sm:px-6">
+        <div className="mx-auto max-w-6xl"><Outlet /></div>
+      </main>
+      <AssistantToggle open={assistantOpen} onOpenChange={setAssistantOpen} />
       <AssistantPanel open={assistantOpen} onClose={() => setAssistantOpen(false)} />
-      <span className="sr-only">{location.pathname}</span>
     </div>
   );
 }
@@ -83,31 +224,39 @@ function Layout({ children }: { children: React.ReactNode }) {
 function App() {
   return (
     <BrowserRouter>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Navigate replace to="/catalog" />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/catalog" element={<CatalogPage />} />
-          <Route path="/catalog/:id" element={<ProductPage />} />
-          <Route path="/orders" element={<OrdersPage />} />
-          <Route path="/admin/dashboard" element={<DashboardPage />} />
-          <Route path="/admin/suppliers" element={<SuppliersPage />} />
-          <Route path="/notifications" element={<NotificationsPage />} />
-          <Route path="/import-export" element={<ListPage />} />
-          <Route path="/import-export/create" element={<CreatePage />} />
-          <Route path="/import-export/view/:id" element={<ViewPage />} />
-          <Route path="/shipments" element={<AdminListPage />} />
-          <Route path="/shipments/create" element={<AdminCreatePage />} />
-          <Route path="/shipments/my" element={<ClientTrackingPage />} />
-          <Route path="/shipments/assigned" element={<TransporterListPage />} />
-          <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
-          <Route path="/documents" element={<DocumentsListPage />} />
-          <Route path="/documents/dossier/:orderId" element={<DossierPage />} />
-          <Route path="/documents/:id" element={<DocumentDetailPage />} />
-          <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
-          <Route path="/payments" element={<PayPage />} />
-        </Routes>
-      </Layout>
+      <Routes>
+        <Route path="/" element={<PublicEntry />} />
+        <Route path="/login" element={<PublicLogin />} />
+        <Route path="/register" element={<PublicRegister />} />
+        <Route path="/assistant" element={<AssistantEntry />} />
+        <Route path="/ai" element={<AssistantEntry />} />
+        <Route path="/chat" element={<AssistantEntry />} />
+        <Route element={<RequireAuth />}>
+          <Route element={<AuthenticatedLayout />}>
+            <Route path="/catalog" element={<CatalogPage />} />
+            <Route path="/catalog/:id" element={<ProductPage />} />
+            <Route path="/orders" element={<OrdersPage />} />
+            <Route path="/admin/dashboard" element={<DashboardPage />} />
+            <Route path="/admin/suppliers" element={<SuppliersPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/import-export" element={<ListPage />} />
+            <Route path="/import-export/create" element={<CreatePage />} />
+            <Route path="/import-export/view/:id" element={<ViewPage />} />
+            <Route path="/shipments" element={<AdminListPage />} />
+            <Route path="/shipments/create" element={<AdminCreatePage />} />
+            <Route path="/shipments/my" element={<ClientTrackingPage />} />
+            <Route path="/shipments/assigned" element={<TransporterListPage />} />
+            <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+            <Route path="/documents" element={<DocumentsListPage />} />
+            <Route path="/documents/dossier/:orderId" element={<DossierPage />} />
+            <Route path="/documents/:id" element={<DocumentDetailPage />} />
+            <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
+            <Route path="/payments" element={<PayPage />} />
+            <Route path="*" element={<Navigate to={roleHome(getSessionUser()?.role ?? 'CLIENT')} replace />} />
+          </Route>
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </BrowserRouter>
   );
 }

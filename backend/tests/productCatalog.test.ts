@@ -20,6 +20,7 @@ import { SupplierRepository } from '../src/repositories/supplierRepository';
 import { ProductController } from '../src/controllers/productController';
 import { ProductService } from '../src/services/productService';
 import { ProductRepository } from '../src/repositories/productRepository';
+import { generateToken } from '../src/utils/jwt';
 
 dotenv.config();
 
@@ -28,6 +29,8 @@ describe('Product catalog and pricing', () => {
   let pool: Pool;
   let adminToken: string;
   let supplierToken: string;
+  let clientToken: string;
+  let merchantToken: string;
   let categoryId: string;
   let productId: string;
 
@@ -55,6 +58,17 @@ describe('Product catalog and pricing', () => {
     adresse: 'Supplier Street',
     ville: 'Lome',
     pays: 'Togo'
+  };
+  const roleEscalationEmail = 'catalog-role-escalation@nextrade.test';
+  const merchantEmail = 'catalog-merchant@nextrade.test';
+
+  const provisionRoleToken = async (userId: string, role: 'ADMIN' | 'FOURNISSEUR' | 'COMMERCANT') => {
+    const result = await pool.query(
+      'UPDATE users SET role = $1 WHERE id_user = $2 RETURNING id_user, email, role',
+      [role, userId]
+    );
+    const user = result.rows[0];
+    return generateToken({ id: user.id_user, email: user.email, role: user.role });
   };
 
   beforeAll(async () => {
@@ -97,7 +111,7 @@ describe('Product catalog and pricing', () => {
 
     await pool.query(`CREATE TABLE IF NOT EXISTS supplier_profiles (
       id_supplier_profile UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-      user_id UUID NOT NULL UNIQUE REFERENCES users(id),
+      user_id UUID NOT NULL UNIQUE REFERENCES users(id_user) ON DELETE CASCADE,
       description TEXT,
       identifiant_professionnel VARCHAR(255),
       statut_verification VARCHAR(30) NOT NULL DEFAULT 'NON_VERIFIE',
@@ -121,13 +135,16 @@ describe('Product catalog and pricing', () => {
     app.use('/api/v1/test', authMiddleware, (req, res) => res.status(200).json({ status: 'success' }));
     app.use(errorMiddleware);
 
-    await pool.query('DELETE FROM users WHERE email IN ($1, $2)', [adminUser.email, supplierUser.email]);
+    await pool.query('DELETE FROM products WHERE nom IN ($1, $2)', ['Produit catalogue test', 'Produit alias compatible']);
+    await pool.query('DELETE FROM users WHERE email IN ($1, $2, $3, $4)', [adminUser.email, supplierUser.email, roleEscalationEmail, merchantEmail]);
+    await pool.query("DELETE FROM users WHERE email LIKE 'catalog-supplier-alias-%@nextrade.test'");
     await pool.query('DELETE FROM categories WHERE nom = $1', ['Catalogue test']);
   });
 
   afterAll(async () => {
-    await pool.query('DELETE FROM products WHERE nom = $1', ['Produit catalogue test']);
-    await pool.query('DELETE FROM users WHERE email IN ($1, $2)', [adminUser.email, supplierUser.email]);
+    await pool.query('DELETE FROM products WHERE nom IN ($1, $2)', ['Produit catalogue test', 'Produit alias compatible']);
+    await pool.query('DELETE FROM users WHERE email IN ($1, $2, $3, $4)', [adminUser.email, supplierUser.email, roleEscalationEmail, merchantEmail]);
+    await pool.query("DELETE FROM users WHERE email LIKE 'catalog-supplier-alias-%@nextrade.test'");
     await pool.query('DELETE FROM categories WHERE nom = $1', ['Catalogue test']);
     await pool.end();
   });
@@ -138,7 +155,8 @@ describe('Product catalog and pricing', () => {
       .send(adminUser);
 
     expect(registerResponse.status).toBe(201);
-    adminToken = registerResponse.body.accessToken;
+    expect(registerResponse.body.user.role).toBe('CLIENT');
+    adminToken = await provisionRoleToken(registerResponse.body.user.id, 'ADMIN');
 
     const response = await request(app)
       .post('/api/v1/categories')
@@ -160,7 +178,7 @@ describe('Product catalog and pricing', () => {
       .send(supplierUser);
 
     expect(registerResponse.status).toBe(201);
-    supplierToken = registerResponse.body.accessToken;
+    supplierToken = await provisionRoleToken(registerResponse.body.user.id, 'FOURNISSEUR');
 
     const response = await request(app)
       .post('/api/v1/products')
@@ -200,7 +218,7 @@ describe('Product catalog and pricing', () => {
       .send(supplierAliasUser);
 
     expect(registerResponse.status).toBe(201);
-    const aliasToken = registerResponse.body.accessToken;
+    const aliasToken = await provisionRoleToken(registerResponse.body.user.id, 'FOURNISSEUR');
 
     const supplierProfileResponse = await request(app)
       .post('/api/v1/suppliers')
@@ -231,28 +249,73 @@ describe('Product catalog and pricing', () => {
     expect(productAliasResponse.body.data.nom).toBe('Produit alias compatible');
   });
 
+  it('should require authentication for catalog reads and ignore privileged registration roles', async () => {
+    const registerResponse = await request(app)
+      .post('/api/v1/auth/register')
+      .send({ ...adminUser, email: roleEscalationEmail });
+
+    expect(registerResponse.status).toBe(201);
+    expect(registerResponse.body.user.role).toBe('CLIENT');
+    clientToken = registerResponse.body.accessToken;
+
+    const anonymousResponse = await request(app)
+      .get('/api/v1/products/catalog');
+
+    expect(anonymousResponse.status).toBe(401);
+
+    const authenticatedResponse = await request(app)
+      .get('/api/v1/products/catalog')
+      .set('Authorization', `Bearer ${clientToken}`);
+
+    expect(authenticatedResponse.status).toBe(200);
+  });
+
+  it('should provision a merchant role only inside the test database', async () => {
+    const registerResponse = await request(app)
+      .post('/api/v1/auth/register')
+      .send({ ...supplierUser, email: merchantEmail });
+
+    expect(registerResponse.status).toBe(201);
+    merchantToken = await provisionRoleToken(registerResponse.body.user.id, 'COMMERCANT');
+  });
+
   it('should return catalog with the correct price according to profile', async () => {
     const clientResponse = await request(app)
       .get('/api/v1/products/catalog')
-      .query({ profile: 'CLIENT' });
+      .set('Authorization', `Bearer ${clientToken}`)
+      .query({ profile: 'COMMERCANT' });
 
     expect(clientResponse.status).toBe(200);
     expect(clientResponse.body.data.some((item: any) => item.nom === 'Produit catalogue test')).toBe(true);
     const product = clientResponse.body.data.find((item: any) => item.nom === 'Produit catalogue test');
     expect(product.effective_price).toBe('120.50');
+    expect(product).not.toHaveProperty('prix_gros');
+    expect(product).not.toHaveProperty('prix_detail');
 
     const supplierResponse = await request(app)
       .get('/api/v1/products/catalog')
-      .query({ profile: 'FOURNISSEUR' });
+      .set('Authorization', `Bearer ${merchantToken}`)
+      .query({ profile: 'CLIENT' });
 
     expect(supplierResponse.status).toBe(200);
     const supplierProduct = supplierResponse.body.data.find((item: any) => item.nom === 'Produit catalogue test');
     expect(supplierProduct.effective_price).toBe('95.25');
+    expect(supplierProduct).not.toHaveProperty('prix_gros');
+    expect(supplierProduct).not.toHaveProperty('prix_detail');
+
+    const supplierSpoofResponse = await request(app)
+      .get('/api/v1/products/catalog')
+      .set('Authorization', `Bearer ${supplierToken}`)
+      .query({ profile: 'COMMERCANT' });
+
+    const supplierSpoofedProduct = supplierSpoofResponse.body.data.find((item: any) => item.nom === 'Produit catalogue test');
+    expect(supplierSpoofedProduct.effective_price).toBe('120.50');
   });
 
   it('should search and filter the catalog', async () => {
     const response = await request(app)
       .get('/api/v1/products/catalog')
+      .set('Authorization', `Bearer ${clientToken}`)
       .query({
         search: 'Produit catalogue',
         category: 'Catalogue test',
@@ -271,10 +334,13 @@ describe('Product catalog and pricing', () => {
   it('should resolve a single product by id', async () => {
     const response = await request(app)
       .get(`/api/v1/products/${productId}`)
+      .set('Authorization', `Bearer ${merchantToken}`)
       .query({ profile: 'COMMERCANT' });
 
     expect(response.status).toBe(200);
     expect(response.body.data.nom).toBe('Produit catalogue test');
     expect(response.body.data.effective_price).toBe('95.25');
+    expect(response.body.data).not.toHaveProperty('prix_detail');
+    expect(response.body.data).not.toHaveProperty('prix_gros');
   });
 });

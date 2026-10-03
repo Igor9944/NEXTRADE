@@ -24,6 +24,7 @@ import { OrderController } from '../src/controllers/orderController';
 import { OrderService } from '../src/services/orderService';
 import { OrderRepository } from '../src/repositories/orderRepository';
 import { authMiddleware } from '../src/middlewares/authMiddleware';
+import { provisionTestRole } from './helpers/testRoles';
 
 dotenv.config();
 
@@ -177,7 +178,7 @@ describe('Cart and order flow', () => {
       .send(supplierUser);
 
     expect(supplierRegister.status).toBe(201);
-    supplierToken = supplierRegister.body.accessToken;
+    supplierToken = await provisionTestRole(pool, supplierRegister.body.user.id, 'FOURNISSEUR');
 
     const categoryResponse = await request(app)
       .post('/api/v1/categories')

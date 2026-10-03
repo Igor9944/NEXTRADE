@@ -49,7 +49,8 @@ export interface CustomsFormalityRecord {
   updated_at?: string;
 }
 
-export interface ImportExportOperationWithDetails extends ImportExportOperationRecord {
+export interface ImportExportOperationWithDetails {
+  operation: ImportExportOperationRecord;
   items: ImportExportItemRecord[];
   formalities: CustomsFormalityRecord[];
 }

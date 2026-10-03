@@ -28,6 +28,7 @@ import { createImportExportRoutes } from '../src/routes/importExportRoutes';
 import { authMiddleware } from '../src/middlewares/authMiddleware';
 import { errorMiddleware } from '../src/middlewares/errorMiddleware';
 import dotenv from 'dotenv';
+import { provisionTestRole } from './helpers/testRoles';
 
 // Load environment variables
 dotenv.config();
@@ -144,9 +145,9 @@ describe('Import-Export System', () => {
     const supplier = await authService.register({
       ...TEST_USER,
       email: `test_ie_supplier_${uniqueId}@nextrade.test`,
-      role: 'FOURNISSEUR',
       nom_entreprise: 'IE Supplier'
     });
+    await provisionTestRole(pool, supplier.user.id, 'FOURNISSEUR');
     const supplierLogin = await authService.login({
       email: `test_ie_supplier_${uniqueId}@nextrade.test`,
       password: TEST_USER.password

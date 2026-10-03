@@ -44,6 +44,7 @@ import {
   createFormalityRoutes,
   createImportExportDocumentRoutes
 } from '../src/routes/documentRoutes';
+import { provisionTestRole } from './helpers/testRoles';
 
 dotenv.config();
 
@@ -279,10 +280,10 @@ describe('Documents, invoices and customs formalities', () => {
     const trB = await register(transporterB);
     clientToken = client.accessToken;
     clientBToken = clientB.accessToken;
-    adminToken = admin.accessToken;
-    supplierToken = supplier.accessToken;
-    transporterAToken = trA.accessToken;
-    transporterBToken = trB.accessToken;
+    adminToken = await provisionTestRole(pool, admin.user.id, 'ADMIN');
+    supplierToken = await provisionTestRole(pool, supplier.user.id, 'FOURNISSEUR');
+    transporterAToken = await provisionTestRole(pool, trA.user.id, 'TRANSPORTEUR');
+    transporterBToken = await provisionTestRole(pool, trB.user.id, 'TRANSPORTEUR');
     clientId = client.user.id;
     transporterAId = trA.user.id;
 

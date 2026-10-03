@@ -50,6 +50,10 @@
   "jest": {
     "preset": "ts-jest",
     "testEnvironment": "node",
+    "globalSetup": "<rootDir>/tests/globalSetup.ts",
+    "setupFiles": [
+      "<rootDir>/tests/setup.ts"
+    ],
     "setupFilesAfterEnv": [],
     "testMatch": [
       "<rootDir>/tests/**/*.test.ts"

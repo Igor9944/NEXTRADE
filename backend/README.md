@@ -71,16 +71,33 @@ npm start
 
 ## Running Tests
 
+The backend test suite writes to PostgreSQL. Never point it at the development or production database.
+Jest refuses to run unless `NODE_ENV=test`, `DB_NAME=nextrade_test`, `DB_HOST` is loopback, and the database has the `NEXTRADE_TEST_DATABASE` comment marker.
+
 ```bash
-# Run all tests
-npm test
+# Create a dedicated local database (requires CREATEDB privilege)
+createdb -h localhost -U nextrade nextrade_test
 
-# Run tests with coverage
-npm test -- --coverage
+# Build the schema from the versioned migrations
+for migration in ../database/migrations/*.sql; do
+  psql -h localhost -U nextrade -d nextrade_test -v ON_ERROR_STOP=1 -f "$migration"
+done
 
-# Run tests in watch mode
-npm test -- --watch
+# Mark the database so Jest can verify the target before tests start
+psql -h localhost -U nextrade -d postgres -v ON_ERROR_STOP=1 \
+  -c "COMMENT ON DATABASE nextrade_test IS 'NEXTRADE_TEST_DATABASE'"
+
+# Run tests only against the dedicated local test database
+NODE_ENV=test DB_HOST=localhost DB_NAME=nextrade_test npm test
+
+# Run a specific suite
+NODE_ENV=test DB_HOST=localhost DB_NAME=nextrade_test npm test -- tests/productCatalog.test.ts
+
+# Run with coverage
+NODE_ENV=test DB_HOST=localhost DB_NAME=nextrade_test npm test -- --coverage
 ```
+
+Public registration always creates a `CLIENT`; privileged roles must be provisioned by an administrator or controlled seed. Catalog routes require authentication, and catalog/detail responses expose only the effective price for the authenticated role.
 
 ## API Documentation
 
@@ -93,7 +110,6 @@ npm test -- --watch
   {
     "email": "user@example.com",
     "password": "Password123!",
-    "role": "CLIENT",
     "nom_entreprise": "Company Name",
     "telephone": "+1234567890"
   }

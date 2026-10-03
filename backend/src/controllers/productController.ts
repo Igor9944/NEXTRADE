@@ -61,16 +61,15 @@ export class ProductController {
     try {
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const authRole = (req as AuthRequest).user?.role;
-      const queryProfile = getQueryString(req.query.profile)?.toUpperCase();
-      const profileValue =
-        authRole === 'COMMERCANT' ? 'COMMERCANT' : authRole === 'CLIENT' ? 'CLIENT' : queryProfile ?? 'CLIENT';
+      const profileValue = authRole === 'COMMERCANT' ? 'COMMERCANT' : 'CLIENT';
       const product = await this.productService.getProductById(id, profileValue);
 
       if (!product) {
         return res.status(404).json({ status: 'error', message: 'Product not found' });
       }
 
-      res.status(200).json({ status: 'success', data: product });
+      const { prix_detail, prix_gros, ...visibleProduct } = product;
+      res.status(200).json({ status: 'success', data: visibleProduct });
     } catch (error) {
       next(error);
     }
@@ -79,9 +78,7 @@ export class ProductController {
   getCatalog = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authRole = (req as AuthRequest).user?.role;
-      const queryProfile = getQueryString(req.query.profile)?.toUpperCase();
-      const profileValue =
-        authRole === 'COMMERCANT' ? 'COMMERCANT' : authRole === 'CLIENT' ? 'CLIENT' : queryProfile ?? 'CLIENT';
+      const profileValue = authRole === 'COMMERCANT' ? 'COMMERCANT' : 'CLIENT';
       const result = await this.productService.getCatalog(profileValue, {
         search: getQueryString(req.query.search),
         category: getQueryString(req.query.category),
@@ -90,10 +87,11 @@ export class ProductController {
         page: getQueryNumber(req.query.page) ?? 1,
         limit: getQueryNumber(req.query.limit) ?? 10
       });
+      const products = result.data.map(({ prix_detail, prix_gros, ...product }) => product);
 
       res.status(200).json({
         status: 'success',
-        data: result.data,
+        data: products,
         pagination: result.pagination
       });
     } catch (error) {

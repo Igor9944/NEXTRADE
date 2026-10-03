@@ -6,9 +6,34 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: nextrade_test
+          POSTGRES_USER: nextrade
+          POSTGRES_PASSWORD: nextrade_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U nextrade -d nextrade_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      NODE_ENV: test
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: nextrade_test
+      DB_USER: nextrade
+      DB_PASSWORD: nextrade_password
+      JWT_SECRET: nextrade-ci-test-secret-long-enough-for-jwt-signing
     defaults:
       run:
         working-directory: backend
@@ -20,6 +45,13 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
+      - name: Mark dedicated test database
+        run: PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -v ON_ERROR_STOP=1 -c "COMMENT ON DATABASE nextrade_test IS 'NEXTRADE_TEST_DATABASE'"
+      - name: Apply database migrations
+        run: |
+          for migration in ../database/migrations/*.sql; do
+            PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 -f "$migration"
+          done
       - run: npm run lint
       - run: npm run build
       - run: npm test -- --passWithNoTests

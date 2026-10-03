@@ -31,6 +31,7 @@ import { ShipmentService } from '../src/services/shipmentService';
 import { ShipmentRepository } from '../src/repositories/shipmentRepository';
 import { authMiddleware } from '../src/middlewares/authMiddleware';
 import { canTransitionShipmentStatus } from '../src/services/shipmentStateMachine';
+import { provisionTestRole } from './helpers/testRoles';
 
 dotenv.config();
 
@@ -194,10 +195,10 @@ describe('Shipments logistics flow', () => {
 
     clientToken = client.accessToken;
     clientBToken = clientB.accessToken;
-    adminToken = admin.accessToken;
-    supplierToken = supplier.accessToken;
-    transporterAToken = trA.accessToken;
-    transporterBToken = trB.accessToken;
+    adminToken = await provisionTestRole(pool, admin.user.id, 'ADMIN');
+    supplierToken = await provisionTestRole(pool, supplier.user.id, 'FOURNISSEUR');
+    transporterAToken = await provisionTestRole(pool, trA.user.id, 'TRANSPORTEUR');
+    transporterBToken = await provisionTestRole(pool, trB.user.id, 'TRANSPORTEUR');
     clientId = client.user.id;
     transporterAId = trA.user.id;
     transporterBId = trB.user.id;

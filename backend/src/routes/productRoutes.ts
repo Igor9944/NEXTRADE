@@ -12,8 +12,8 @@ export const createProductRoutes = (productController: ProductController) => {
   const router = Router();
 
   router.post('/', authMiddleware, requireRole('FOURNISSEUR', 'ADMIN'), productController.createProduct);
-  router.get('/catalog', optionalAuthMiddleware, productController.getCatalog);
-  router.get('/:id', optionalAuthMiddleware, productController.getById);
+  router.get('/catalog', authMiddleware, requireRole('CLIENT', 'COMMERCANT', 'FOURNISSEUR', 'ADMIN'), productController.getCatalog);
+  router.get('/:id', authMiddleware, requireRole('CLIENT', 'COMMERCANT', 'FOURNISSEUR', 'ADMIN'), productController.getById);
 
   return router;
 };

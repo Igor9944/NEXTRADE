@@ -13,12 +13,13 @@ function moduleFromPath(pathname: string): string {
 }
 
 export const AssistantPanel: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
-  const { t, aiLang } = useI18n();
+  const { t, aiLang, setAiLang } = useI18n();
   const location = useLocation();
   const moduleName = useMemo(() => moduleFromPath(location.pathname), [location.pathname]);
   const [message, setMessage] = useState('');
   const [lines, setLines] = useState<Array<{ from: 'user' | 'assistant'; text: string }>>([]);
   const [busy, setBusy] = useState(false);
+  const [assistantLanguage, setAssistantLanguage] = useState<'fr' | 'en' | 'ar'>(aiLang);
 
   if (!open) return null;
 
@@ -31,7 +32,7 @@ export const AssistantPanel: React.FC<{ open: boolean; onClose: () => void }> = 
     try {
       const result = await apiRequest<{ status: string; data: { reply: string } }>('/api/v1/ai/chat', {
         method: 'POST',
-        body: JSON.stringify({ message: text, language: aiLang, context: { module: moduleName } })
+        body: JSON.stringify({ message: text, language: assistantLanguage, context: { module: moduleName } })
       });
       setLines((current) => [...current, { from: 'assistant', text: result.data.reply }]);
     } catch (error) {
@@ -44,10 +45,16 @@ export const AssistantPanel: React.FC<{ open: boolean; onClose: () => void }> = 
     }
   };
 
+  const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const lang = e.target.value as 'fr' | 'en' | 'ar';
+    setAssistantLanguage(lang);
+    setAiLang(lang); // Update the global assistant language preference
+  };
+
   return (
-    <aside className="fixed inset-y-0 end-0 w-full sm:w-96 bg-white border-s shadow-xl z-40 flex flex-col">
+    <div className="fixed inset-y-0 end-0 w-full sm:w-96 bg-white border-s shadow-xl z-40 flex flex-col">
       <div className="p-3 border-b flex items-center justify-between gap-2">
-        <h2 className="font-semibold">{t('assistantTitle')}</h2>
+        <h2 id="assistant-panel-title" className="font-semibold">{t('assistantTitle')}</h2>
         <div className="flex gap-2">
           <button className="text-sm border rounded px-2 py-1" onClick={() => setLines([])}>
             {t('clear')}
@@ -56,6 +63,18 @@ export const AssistantPanel: React.FC<{ open: boolean; onClose: () => void }> = 
             X
           </button>
         </div>
+      </div>
+      <div className="p-3 border-b">
+        <label className="block text-sm font-medium text-gray-700 mb-1">{t('assistantLanguage')}</label>
+        <select
+          value={assistantLanguage}
+          onChange={handleLanguageChange}
+          className="block w-full p-2 border border-gray-300 rounded-md bg-white"
+        >
+          <option value="fr">{t('languageFrench')}</option>
+          <option value="en">{t('languageEnglish')}</option>
+          <option value="ar">{t('languageArabic')}</option>
+        </select>
       </div>
       <p className="px-3 pt-2 text-xs text-gray-600">{t('assistantHint')} · {moduleName}</p>
       <div className="flex-1 overflow-auto p-3 space-y-2 text-sm">
@@ -83,6 +102,24 @@ export const AssistantPanel: React.FC<{ open: boolean; onClose: () => void }> = 
           {t('send')}
         </button>
       </form>
-    </aside>
+    </div>
+  );
+};
+
+export const AssistantToggle: React.FC<{ open: boolean; onOpenChange: (open: boolean) => void }> = ({ open, onOpenChange }) => {
+  const { t } = useI18n();
+  
+  return (
+    <div className="fixed bottom-4 right-4 z-50">
+      <button
+        className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center hover:bg-blue-700 transition-colors shadow-lg"
+        aria-label={t('navAssistant')}
+        aria-expanded={open}
+        aria-controls="assistant-panel"
+        onClick={() => onOpenChange(!open)}
+      >
+        <span className="text-xl">◉</span>
+      </button>
+    </div>
   );
 };

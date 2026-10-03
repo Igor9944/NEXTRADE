@@ -18,15 +18,29 @@ The database connection is configured via environment variables in the backend a
 - `DB_USER`: Database username
 - `DB_PASSWORD`: Database password
 
-## Setup
+## Schema and Migrations
 
-1. Ensure PostgreSQL is installed and running.
-2. Create a database named `nextrade` (or as per your configuration).
-3. Update the `.env` files with your database credentials.
-4. Run migrations (to be implemented) to create the necessary tables.
+The schema is defined by the ordered SQL migrations in `migrations/` (currently `001` through `019`). Apply them in filename order to an empty database:
 
-## Notes
+```bash
+for migration in database/migrations/*.sql; do
+	psql -h localhost -U nextrade -d nextrade -v ON_ERROR_STOP=1 -f "$migration"
+done
+```
 
-- This week focuses on setting up the connection and structure.
-- No actual tables are created yet; that will be part of Week 2.
-- For development, you can use Docker Compose to start a PostgreSQL instance (see docker-compose.yml at the project root).
+Start the local PostgreSQL service with `docker compose up -d db` from the repository root. Do not run test suites against the development database.
+
+## Isolated Backend Test Database
+
+Backend integration tests require a separate local database named `nextrade_test`. Rebuild it from the migrations, then add the marker that Jest verifies before running any test:
+
+```bash
+createdb -h localhost -U nextrade nextrade_test
+for migration in database/migrations/*.sql; do
+	psql -h localhost -U nextrade -d nextrade_test -v ON_ERROR_STOP=1 -f "$migration"
+done
+psql -h localhost -U nextrade -d postgres \
+	-c "COMMENT ON DATABASE nextrade_test IS 'NEXTRADE_TEST_DATABASE'"
+```
+
+Run backend tests with `NODE_ENV=test DB_HOST=localhost DB_NAME=nextrade_test npm test` from `backend/`. Never mark the development or production database as a test database.
