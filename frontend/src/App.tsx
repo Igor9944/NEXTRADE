@@ -34,17 +34,26 @@ import DashboardPage from './pages/admin/DashboardPage';
 import SuppliersPage from './pages/admin/SuppliersPage';
 import NotificationsPage from './pages/notifications/NotificationsPage';
 import { LandingPage, PublicLayout } from './pages/public/PublicPages';
+import SupplierAppShell from './pages/supplier/SupplierAppShell';
+import SupplierDashboardPage from './pages/supplier/SupplierDashboardPage';
+import SupplierDocumentsPage from './pages/supplier/SupplierDocumentsPage';
+import SupplierNotificationsPage from './pages/supplier/SupplierNotificationsPage';
+import SupplierPlaceholderPage from './pages/supplier/SupplierPlaceholderPage';
+import SupplierProfilePage from './pages/supplier/SupplierProfilePage';
+import { logout } from './services/authService';
 
 type NavigationItem = { path: string; label: string };
 
 const roleHome = (role: UserRole): string => {
   if (role === 'ADMIN') return '/admin/dashboard';
   if (role === 'TRANSPORTEUR') return '/shipments/assigned';
+  if (role === 'FOURNISSEUR') return '/supplier/dashboard';
   return '/catalog';
 };
 
 function roleCanVisitPath(role: UserRole, path: string): boolean {
   path = path.length > 1 ? path.replace(/\/+$/, '') : path;
+  if (path.startsWith('/supplier/')) return role === 'FOURNISSEUR';
   if (path.startsWith('/admin/')) return role === 'ADMIN';
   if (path === '/shipments' || path === '/shipments/create') return role === 'ADMIN';
   if (path === '/shipments/assigned') return role === 'TRANSPORTEUR';
@@ -154,6 +163,7 @@ function privateNavigation(user: SessionUser, t: (key: string) => string): Navig
       ['/shipments/my', 'navTracking'],
       ['/import-export', 'navImportExport'],
       ['/documents', 'navDocuments'],
+      ['/payments', 'navPayments'],
       ['/notifications', 'navNotifications']
     ],
     TRANSPORTEUR: [
@@ -178,7 +188,7 @@ function AuthenticatedLayout() {
 
   const navigation = privateNavigation(user, t);
   return (
-    <div className="relative min-h-screen bg-gray-50 md:flex">
+    <div className="min-h-screen bg-gray-50 md:flex">
       <aside className="w-full shrink-0 border-b bg-white p-4 md:min-h-screen md:w-60 md:border-b-0 md:border-e">
         <a className="sr-only focus:not-sr-only focus:mb-4 focus:block focus:bg-white focus:p-3" href="#private-main">
           {t('skipToContent')}
@@ -197,14 +207,22 @@ function AuthenticatedLayout() {
               {item.label}
             </Link>
           ))}
+          <button
+            className="shrink-0 text-start text-blue-700"
+            aria-expanded={assistantOpen}
+            aria-controls={assistantOpen ? 'assistant-panel' : undefined}
+            onClick={() => setAssistantOpen(true)}
+          >
+            {t('navAssistant')}
+          </button>
         </nav>
         <div className="mt-5"><LanguageSwitcher /></div>
         <div className="mt-4 flex items-center gap-3 md:block">
           <span className="text-xs text-gray-500">{user.role}</span>
           <button
             className="text-sm text-gray-600 underline underline-offset-4"
-            onClick={() => {
-              clearSession();
+            onClick={async () => {
+              await logout();
               window.location.assign('/login');
             }}
           >
@@ -232,6 +250,19 @@ function App() {
         <Route path="/ai" element={<AssistantEntry />} />
         <Route path="/chat" element={<AssistantEntry />} />
         <Route element={<RequireAuth />}>
+          <Route element={<SupplierAppShell />}>
+            <Route path="/supplier/dashboard" element={<SupplierDashboardPage />} />
+            <Route path="/supplier/products" element={<SupplierPlaceholderPage />} />
+            <Route path="/supplier/pricing" element={<SupplierPlaceholderPage />} />
+            <Route path="/supplier/inventory" element={<SupplierPlaceholderPage />} />
+            <Route path="/supplier/orders" element={<SupplierPlaceholderPage />} />
+            <Route path="/supplier/shipments" element={<SupplierPlaceholderPage />} />
+            <Route path="/supplier/documents" element={<SupplierDocumentsPage />} />
+            <Route path="/supplier/verification" element={<SupplierPlaceholderPage />} />
+            <Route path="/supplier/notifications" element={<SupplierNotificationsPage />} />
+            <Route path="/supplier/profile" element={<SupplierProfilePage />} />
+            <Route path="/supplier/settings" element={<SupplierPlaceholderPage />} />
+          </Route>
           <Route element={<AuthenticatedLayout />}>
             <Route path="/catalog" element={<CatalogPage />} />
             <Route path="/catalog/:id" element={<ProductPage />} />

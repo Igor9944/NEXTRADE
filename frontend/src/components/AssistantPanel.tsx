@@ -4,6 +4,7 @@ import { apiRequest } from '../services/http';
 import { useI18n } from '../i18n/I18nProvider';
 
 function moduleFromPath(pathname: string): string {
+  if (pathname.startsWith('/supplier')) return 'supplier';
   if (pathname.startsWith('/admin/dashboard')) return 'analytics';
   if (pathname.startsWith('/documents') || pathname.startsWith('/invoices')) return 'documents';
   if (pathname.startsWith('/import-export')) return 'import-export';

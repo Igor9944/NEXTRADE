@@ -1,6 +1,7 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import { Pool } from 'pg';
 
@@ -54,6 +55,7 @@ app.use(cors({
   credentials: true
 }));
 
+app.use(cookieParser());
 app.use((req: Request, res: Response, next: NextFunction) => {
   if (req.originalUrl === '/api/v1/payments/webhook') {
     return express.raw({ type: 'application/json', limit: '1mb' })(req, res, next);

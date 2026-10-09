@@ -19,7 +19,9 @@ const LoginPage: React.FC = () => {
     try {
       const user = await login(email, password);
       let defaultDestination = '/catalog';
-      if (user.role === 'TRANSPORTEUR') {
+      if (user.role === 'FOURNISSEUR') {
+        defaultDestination = '/supplier/dashboard';
+      } else if (user.role === 'TRANSPORTEUR') {
         defaultDestination = '/shipments/assigned';
       } else if (user.role === 'ADMIN') {
         defaultDestination = '/admin/dashboard';

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { verifyToken, extractToken } from '../utils/jwt';
+import { verifyToken } from '../utils/jwt';
 import { UserRepository } from '../repositories/userRepository';
 
 /**
@@ -15,7 +15,7 @@ export interface AuthRequest extends Request {
 
 /**
  * Authentication middleware
- * Verifies JWT token and attaches user to request
+ * Verifies JWT token from cookie and attaches user to request
  */
 export const authMiddleware = async (
   req: AuthRequest,
@@ -23,8 +23,8 @@ export const authMiddleware = async (
   next: NextFunction
 ) => {
   try {
-    // Extract token from header
-    const token = extractToken(req);
+    // Extract token from cookie
+    const token = req.cookies?.nextrade_session;
     if (!token) {
       return res.status(401).json({
         status: 'error',
@@ -74,7 +74,8 @@ export const optionalAuthMiddleware = async (
   next: NextFunction
 ) => {
   try {
-    const token = extractToken(req);
+    // Extract token from cookie
+    const token = req.cookies?.nextrade_session;
     if (!token) {
       return next();
     }

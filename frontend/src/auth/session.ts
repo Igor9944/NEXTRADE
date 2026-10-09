@@ -1,5 +1,8 @@
-const TOKEN_KEY = 'nextrade_token';
-const USER_KEY = 'nextrade_user';
+import { apiRequest } from '../services/http';
+
+let currentUserCache: SessionUser | null = null;
+let isInitialized = false;
+let initializationPromise: Promise<void> | null = null;
 
 export type SessionUser = {
   id: string;
@@ -10,42 +13,91 @@ export type SessionUser = {
 export type UserRole = 'ADMIN' | 'CLIENT' | 'FOURNISSEUR' | 'COMMERCANT' | 'TRANSPORTEUR';
 const USER_ROLES = new Set<UserRole>(['ADMIN', 'CLIENT', 'FOURNISSEUR', 'COMMERCANT', 'TRANSPORTEUR']);
 
-export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
-}
-
-export function getSessionUser(): SessionUser | null {
-  const raw = localStorage.getItem(USER_KEY);
-  if (!raw) {
-    return null;
+/**
+ * Initialize session by checking authentication status with backend
+ * Should be called once when app loads
+ */
+export async function initializeSession(): Promise<void> {
+  if (isInitialized) {
+    return;
   }
-  try {
-    const user: unknown = JSON.parse(raw);
-    if (
-      typeof user !== 'object' ||
-      user === null ||
-      !('id' in user) ||
-      typeof user.id !== 'string' ||
-      !('email' in user) ||
-      typeof user.email !== 'string' ||
-      !('role' in user) ||
-      typeof user.role !== 'string' ||
-      !USER_ROLES.has(user.role as UserRole)
-    ) {
-      return null;
+
+  if (initializationPromise) {
+    await initializationPromise;
+    return;
+  }
+
+  initializationPromise = (async () => {
+    try {
+      const data = await apiRequest<{
+        status: string;
+        data: {
+          id?: string;
+          id_user?: string;
+          email: string;
+          role: string;
+        };
+      }>('/api/v1/profile/me');
+
+      if (data.status === 'success' && data.data) {
+        const userData = data.data;
+        const userId = userData.id ?? userData.id_user;
+        // Validate user data
+        if (
+          typeof userData === 'object' &&
+          userData !== null &&
+          typeof userId === 'string' &&
+          typeof userData.email === 'string' &&
+          typeof userData.role === 'string' &&
+          USER_ROLES.has(userData.role as UserRole)
+        ) {
+          currentUserCache = {
+            id: userId,
+            email: userData.email,
+            role: userData.role as UserRole
+          };
+        }
+      }
+      // If not ok or invalid data, currentUserCache remains null
+    } catch (error) {
+      // On error, treat as not authenticated
+      currentUserCache = null;
+    } finally {
+      isInitialized = true;
+      initializationPromise = null;
     }
-    return { id: user.id, email: user.email, role: user.role as UserRole };
-  } catch {
-    return null;
-  }
+  })();
+
+  await initializationPromise;
 }
 
-export function setSession(token: string, user: SessionUser) {
-  localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
+/**
+ * Get session user from cache (synchronous)
+ * Returns null if not initialized or not authenticated
+ */
+export function getSessionUser(): SessionUser | null {
+  return currentUserCache;
 }
 
-export function clearSession() {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(USER_KEY);
+/**
+ * Clear session cache
+ */
+export function clearSession(): void {
+  currentUserCache = null;
+  isInitialized = false;
+  initializationPromise = null;
+}
+
+/**
+ * Set session user in cache (used after login/register)
+ * Note: Token is handled via httpOnly cookie by backend
+ */
+export function setSession(token: string, user: SessionUser): void {
+  currentUserCache = user;
+  isInitialized = true; // Mark as initialized since we have user data
+}
+
+// Legacy function - tokens are now in cookies, not accessible to JS
+export function getToken(): string | null {
+  return null;
 }
