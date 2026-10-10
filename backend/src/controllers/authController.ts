@@ -24,9 +24,13 @@ export class AuthController {
         maxAge: 60 * 60 * 1000 // 1 hour, matching JWT expiration
       });
 
-      // Return user info without token
+      // Return the user payload in the legacy top-level shape expected by tests and clients,
+      // while also keeping the cookie-based session for browser use.
+      // Note: accessToken is NOT returned in JSON for security - it's set as HTTPOnly cookie only
       res.status(201).json({
         status: 'success',
+        message: result.message,
+        user: result.user,
         data: {
           user: result.user
         }
@@ -52,9 +56,13 @@ export class AuthController {
         maxAge: 60 * 60 * 1000 // 1 hour, matching JWT expiration
       });
 
-      // Return user info without token
+      // Return the user payload in the legacy top-level shape expected by tests and clients,
+      // while also keeping the cookie-based session for browser use.
+      // Note: accessToken is NOT returned in JSON for security - it's set as HTTPOnly cookie only
       res.status(200).json({
         status: 'success',
+        message: result.message,
+        user: result.user,
         data: {
           user: result.user
         }

@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const port = Number(process.env.PLAYWRIGHT_PORT || 5173);
+const backendPort = Number(process.env.PLAYWRIGHT_BACKEND_PORT || 3000);
 
 /**
  * Read environment variables from file.
@@ -75,10 +76,19 @@ export default defineConfig({
   /* Folder for test artifacts such as screenshots, videos, traces, etc. */
   // outputDir: 'test-results/',
 
-  /* Reuse the development server already started for local validation. */
-  webServer: {
-    command: `npm run dev -- --host 0.0.0.0 --port ${port}`,
-    port,
-    reuseExistingServer: true,
-  },
+  /* Start the backend API and frontend app together so browser auth tests can reach the real login route. */
+  webServer: [
+    {
+      command: `cmd /c "cd ../backend && set "NODE_ENV=test" && set "DB_HOST=localhost" && set "DB_PORT=5433" && set "DB_NAME=nextrade_test" && set "DB_USER=nextrade" && set "DB_PASSWORD=nextrade" && set "PORT=${backendPort}" && set "JWT_SECRET=localdev-secret-change-me-please-ensure-length-123456" && npm run dev"`,
+      port: backendPort,
+      reuseExistingServer: true,
+      timeout: 120000,
+    },
+    {
+      command: `npm run dev -- --host 0.0.0.0 --port ${port}`,
+      port,
+      reuseExistingServer: true,
+      timeout: 120000,
+    },
+  ],
 });

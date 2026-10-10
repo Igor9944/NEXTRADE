@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { verifyToken } from '../utils/jwt';
+import { verifyToken, extractToken } from '../utils/jwt';
 import { UserRepository } from '../repositories/userRepository';
 
 /**
@@ -23,8 +23,8 @@ export const authMiddleware = async (
   next: NextFunction
 ) => {
   try {
-    // Extract token from cookie
-    const token = req.cookies?.nextrade_session;
+    // Support both browser cookie sessions and API authorization headers.
+    const token = req.cookies?.nextrade_session || extractToken(req);
     if (!token) {
       return res.status(401).json({
         status: 'error',
@@ -74,8 +74,8 @@ export const optionalAuthMiddleware = async (
   next: NextFunction
 ) => {
   try {
-    // Extract token from cookie
-    const token = req.cookies?.nextrade_session;
+    // Support both browser cookie sessions and API authorization headers.
+    const token = req.cookies?.nextrade_session || extractToken(req);
     if (!token) {
       return next();
     }

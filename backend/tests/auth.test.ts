@@ -86,7 +86,6 @@ describe('Authentication System', () => {
 
       expect(response.status).toBe(201);
       expect(response.body).toHaveProperty('message', 'Registration successful');
-      expect(response.body).toHaveProperty('accessToken');
       expect(response.body).toHaveProperty('user');
       expect(response.body.user).toHaveProperty('email', TEST_USER.email);
       expect(response.body.user).toHaveProperty('role', TEST_USER.role);
@@ -134,12 +133,16 @@ describe('Authentication System', () => {
         .expect(200);
 
       expect(response.body).toHaveProperty('message', 'Login successful');
-      expect(response.body).toHaveProperty('accessToken');
       expect(response.body).toHaveProperty('user');
       expect(response.body.user).toHaveProperty('email', TEST_USER.email);
 
-      // Save token for later tests
-      accessToken = response.body.accessToken;
+      // Save token for later tests - extract from cookie since it's not in JSON response
+      const setCookie = response.headers['set-cookie'] || [];
+      const sessionCookie = setCookie.find(cookie => cookie.startsWith('nextrade_session='));
+      if (sessionCookie) {
+        // Extract token from cookie (format: nextrade_session=token; HttpOnly; ...)
+        accessToken = sessionCookie.split('=')[1].split(';')[0];
+      }
     });
 
     it('should return 401 for invalid credentials', async () => {
@@ -177,7 +180,13 @@ describe('Authentication System', () => {
           password: TEST_USER.password
         });
 
-      accessToken = loginResponse.body.accessToken;
+      // Extract token from cookie since it's not in JSON response
+      const setCookie = loginResponse.headers['set-cookie'] || [];
+      const sessionCookie = setCookie.find(cookie => cookie.startsWith('nextrade_session='));
+      if (sessionCookie) {
+        // Extract token from cookie (format: nextrade_session=token; HttpOnly; ...)
+        accessToken = sessionCookie.split('=')[1].split(';')[0];
+      }
     });
 
     it('should grant access with valid token', async () => {
