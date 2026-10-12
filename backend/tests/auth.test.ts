@@ -13,6 +13,28 @@ import dotenv from 'dotenv';
 // Load environment variables
 dotenv.config();
 
+// Extract the session JWT without assuming the header is always an array.
+function extractSessionToken(setCookieHeader: string | string[] | undefined): string {
+  const cookies = Array.isArray(setCookieHeader)
+    ? setCookieHeader
+    : setCookieHeader
+      ? [setCookieHeader]
+      : [];
+  const sessionCookie = cookies.find((cookie) => cookie.startsWith('nextrade_session='));
+
+  if (!sessionCookie) {
+    throw new Error('Expected nextrade_session cookie in authentication response');
+  }
+
+  const cookiePair = sessionCookie.split(';', 1)[0];
+  const separatorIndex = cookiePair.indexOf('=');
+  if (separatorIndex < 0) {
+    throw new Error('Malformed nextrade_session cookie');
+  }
+
+  return cookiePair.slice(separatorIndex + 1);
+}
+
 describe('Authentication System', () => {
   let app: Application;
   let pool: Pool;
@@ -137,12 +159,7 @@ describe('Authentication System', () => {
       expect(response.body.user).toHaveProperty('email', TEST_USER.email);
 
       // Save token for later tests - extract from cookie since it's not in JSON response
-      const setCookie = response.headers['set-cookie'] || [];
-      const sessionCookie = setCookie.find(cookie => cookie.startsWith('nextrade_session='));
-      if (sessionCookie) {
-        // Extract token from cookie (format: nextrade_session=token; HttpOnly; ...)
-        accessToken = sessionCookie.split('=')[1].split(';')[0];
-      }
+      accessToken = extractSessionToken(response.headers['set-cookie']);
     });
 
     it('should return 401 for invalid credentials', async () => {
@@ -181,12 +198,7 @@ describe('Authentication System', () => {
         });
 
       // Extract token from cookie since it's not in JSON response
-      const setCookie = loginResponse.headers['set-cookie'] || [];
-      const sessionCookie = setCookie.find(cookie => cookie.startsWith('nextrade_session='));
-      if (sessionCookie) {
-        // Extract token from cookie (format: nextrade_session=token; HttpOnly; ...)
-        accessToken = sessionCookie.split('=')[1].split(';')[0];
-      }
+      accessToken = extractSessionToken(loginResponse.headers['set-cookie']);
     });
 
     it('should grant access with valid token', async () => {
