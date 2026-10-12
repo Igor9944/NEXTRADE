@@ -25,6 +25,7 @@ import { OrderService } from '../src/services/orderService';
 import { OrderRepository } from '../src/repositories/orderRepository';
 import { authMiddleware } from '../src/middlewares/authMiddleware';
 import { provisionTestRole } from './helpers/testRoles';
+import { extractSessionToken } from './helpers/sessionToken';
 
 dotenv.config();
 
@@ -171,7 +172,7 @@ describe('Cart and order flow', () => {
       .send(clientUser);
 
     expect(clientRegister.status).toBe(201);
-    clientToken = clientRegister.body.accessToken;
+    clientToken = extractSessionToken(clientRegister.headers['set-cookie']);
 
     const supplierRegister = await request(app)
       .post('/api/v1/auth/register')

@@ -9,6 +9,7 @@ import testProtectedRoutes from '../src/routes/testProtectedRoutes';
 import { authMiddleware } from '../src/middlewares/authMiddleware';
 import { errorMiddleware } from '../src/middlewares/errorMiddleware';
 import dotenv from 'dotenv';
+import { extractSessionToken } from './helpers/sessionToken';
 
 // Load environment variables
 dotenv.config();
@@ -136,13 +137,7 @@ describe('Authentication System', () => {
       expect(response.body).toHaveProperty('user');
       expect(response.body.user).toHaveProperty('email', TEST_USER.email);
 
-      // Save token for later tests - extract from cookie since it's not in JSON response
-      const setCookie = response.headers['set-cookie'] || [];
-      const sessionCookie = setCookie.find(cookie => cookie.startsWith('nextrade_session='));
-      if (sessionCookie) {
-        // Extract token from cookie (format: nextrade_session=token; HttpOnly; ...)
-        accessToken = sessionCookie.split('=')[1].split(';')[0];
-      }
+      accessToken = extractSessionToken(response.headers['set-cookie']);
     });
 
     it('should return 401 for invalid credentials', async () => {
@@ -180,13 +175,7 @@ describe('Authentication System', () => {
           password: TEST_USER.password
         });
 
-      // Extract token from cookie since it's not in JSON response
-      const setCookie = loginResponse.headers['set-cookie'] || [];
-      const sessionCookie = setCookie.find(cookie => cookie.startsWith('nextrade_session='));
-      if (sessionCookie) {
-        // Extract token from cookie (format: nextrade_session=token; HttpOnly; ...)
-        accessToken = sessionCookie.split('=')[1].split(';')[0];
-      }
+      accessToken = extractSessionToken(loginResponse.headers['set-cookie']);
     });
 
     it('should grant access with valid token', async () => {

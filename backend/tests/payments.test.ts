@@ -33,6 +33,7 @@ import { createPaymentRoutes } from '../src/routes/paymentRoutes';
 import { SignedSandboxPaymentProvider, createHmacSignature } from '../src/services/paymentProvider';
 import { InMemoryNotificationProvider, NotificationService } from '../src/services/notificationService';
 import { provisionTestRole } from './helpers/testRoles';
+import { extractSessionToken } from './helpers/sessionToken';
 
 dotenv.config();
 
@@ -186,15 +187,15 @@ describe('Payments and notifications', () => {
     const register = async (payload: object) => {
       const response = await request(app).post('/api/v1/auth/register').send(payload);
       expect(response.status).toBe(201);
-      return response.body;
+      return { ...response.body, setCookie: response.headers['set-cookie'] };
     };
 
     const client = await register(clientUser);
     const clientB = await register(clientBUser);
     const admin = await register(adminUser);
     const supplier = await register(supplierUser);
-    clientToken = client.accessToken;
-    clientBToken = clientB.accessToken;
+    clientToken = extractSessionToken(client.setCookie);
+    clientBToken = extractSessionToken(clientB.setCookie);
     adminToken = await provisionTestRole(pool, admin.user.id, 'ADMIN');
     supplierToken = await provisionTestRole(pool, supplier.user.id, 'FOURNISSEUR');
 
@@ -350,7 +351,7 @@ describe('Payments and notifications', () => {
     const register = async (payload: object) => {
       const response = await request(app).post('/api/v1/auth/register').send(payload);
       expect(response.status).toBe(201);
-      return response.body;
+      return { ...response.body, setCookie: response.headers['set-cookie'] };
     };
     const suffix2 = `${Date.now()}-sbx`;
     const client = await register({
@@ -359,6 +360,7 @@ describe('Payments and notifications', () => {
       role: 'CLIENT',
       nom_entreprise: 'Pay Sbx'
     });
+    clientToken = extractSessionToken(client.setCookie);
     const supplier = await register({
       email: `sup.sbx.${suffix2}@nextrade.test`,
       password: 'PayPass123!',
@@ -388,32 +390,32 @@ describe('Payments and notifications', () => {
     );
     await request(app)
       .post('/api/v1/cart/items')
-      .set('Authorization', `Bearer ${client.accessToken}`)
+      .set('Authorization', `Bearer ${clientToken}`)
       .send({ productId: productResponse.body.data.id_product, quantity: 1 });
     const order = await request(app)
       .post('/api/v1/orders')
-      .set('Authorization', `Bearer ${client.accessToken}`)
+      .set('Authorization', `Bearer ${clientToken}`)
       .send({ adresse_livraison: 'Lome' });
     expect(order.status).toBe(201);
     const initiated = await request(app)
       .post('/api/v1/payments')
-      .set('Authorization', `Bearer ${client.accessToken}`)
+      .set('Authorization', `Bearer ${clientToken}`)
       .send({ order_id: order.body.data.id_order });
     expect(initiated.status).toBe(201);
     const txId = initiated.body.data.transaction.id_transaction;
     const confirmed = await request(app)
       .post(`/api/v1/payments/${txId}/sandbox-confirm`)
-      .set('Authorization', `Bearer ${client.accessToken}`)
+      .set('Authorization', `Bearer ${clientToken}`)
       .send({});
     expect(confirmed.status).toBe(200);
     expect(confirmed.body.data.transaction.statut_transaction).toBe('VALIDEE');
     const paid = await request(app)
       .get(`/api/v1/orders/${order.body.data.id_order}`)
-      .set('Authorization', `Bearer ${client.accessToken}`);
+      .set('Authorization', `Bearer ${clientToken}`);
     expect(paid.body.data.statut).toBe('PAYEE');
     const again = await request(app)
       .post(`/api/v1/payments/${txId}/sandbox-confirm`)
-      .set('Authorization', `Bearer ${client.accessToken}`)
+      .set('Authorization', `Bearer ${clientToken}`)
       .send({});
     expect(again.status).toBe(200);
     expect(again.body.data.duplicate).toBe(true);

@@ -32,6 +32,7 @@ import { ShipmentRepository } from '../src/repositories/shipmentRepository';
 import { authMiddleware } from '../src/middlewares/authMiddleware';
 import { canTransitionShipmentStatus } from '../src/services/shipmentStateMachine';
 import { provisionTestRole } from './helpers/testRoles';
+import { extractSessionToken } from './helpers/sessionToken';
 
 dotenv.config();
 
@@ -183,7 +184,7 @@ describe('Shipments logistics flow', () => {
     const register = async (payload: object) => {
       const response = await request(app).post('/api/v1/auth/register').send(payload);
       expect(response.status).toBe(201);
-      return response.body;
+      return { ...response.body, setCookie: response.headers['set-cookie'] };
     };
 
     const client = await register(clientUser);
@@ -193,8 +194,8 @@ describe('Shipments logistics flow', () => {
     const trA = await register(transporterA);
     const trB = await register(transporterB);
 
-    clientToken = client.accessToken;
-    clientBToken = clientB.accessToken;
+    clientToken = extractSessionToken(client.setCookie);
+    clientBToken = extractSessionToken(clientB.setCookie);
     adminToken = await provisionTestRole(pool, admin.user.id, 'ADMIN');
     supplierToken = await provisionTestRole(pool, supplier.user.id, 'FOURNISSEUR');
     transporterAToken = await provisionTestRole(pool, trA.user.id, 'TRANSPORTEUR');

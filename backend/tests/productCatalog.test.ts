@@ -21,6 +21,7 @@ import { ProductController } from '../src/controllers/productController';
 import { ProductService } from '../src/services/productService';
 import { ProductRepository } from '../src/repositories/productRepository';
 import { generateToken } from '../src/utils/jwt';
+import { extractSessionToken } from './helpers/sessionToken';
 
 dotenv.config();
 
@@ -79,22 +80,6 @@ describe('Product catalog and pricing', () => {
       user: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
     });
-
-    await pool.query(`CREATE TABLE IF NOT EXISTS categories (
-      id_category UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-      nom VARCHAR(255) NOT NULL UNIQUE,
-      description TEXT,
-      created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-    )`);
-
-    await pool.query(`CREATE TABLE IF NOT EXISTS product_categories (
-      id_product UUID NOT NULL,
-      id_category UUID NOT NULL,
-      PRIMARY KEY (id_product, id_category),
-      CONSTRAINT fk_product_categories_product FOREIGN KEY (id_product) REFERENCES products(id_product) ON DELETE CASCADE,
-      CONSTRAINT fk_product_categories_category FOREIGN KEY (id_category) REFERENCES categories(id_category) ON DELETE CASCADE
-    )`);
 
     const userRepository = new UserRepository(pool);
     const authService = new AuthService(userRepository);
@@ -256,7 +241,7 @@ describe('Product catalog and pricing', () => {
 
     expect(registerResponse.status).toBe(201);
     expect(registerResponse.body.user.role).toBe('CLIENT');
-    clientToken = registerResponse.body.accessToken;
+    clientToken = extractSessionToken(registerResponse.headers['set-cookie']);
 
     const anonymousResponse = await request(app)
       .get('/api/v1/products/catalog');

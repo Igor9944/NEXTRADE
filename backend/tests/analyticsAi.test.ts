@@ -19,6 +19,7 @@ import { AiService } from '../src/services/aiService';
 import { createAiRoutes } from '../src/routes/aiRoutes';
 import { isForbiddenAiRequest } from '../src/services/aiGuard';
 import { provisionTestRole } from './helpers/testRoles';
+import { extractSessionToken } from './helpers/sessionToken';
 
 dotenv.config();
 
@@ -66,7 +67,7 @@ describe('Analytics, AI guard and language preferences', () => {
     const admin = await request(app).post('/api/v1/auth/register').send({ ...base, email: `dash-admin-${suffix}@nextrade.test`, role: 'ADMIN', nom_entreprise: 'Admin Dash' });
     const client = await request(app).post('/api/v1/auth/register').send({ ...base, email: `dash-client-${suffix}@nextrade.test`, role: 'CLIENT', nom_entreprise: 'Client Dash' });
     adminToken = await provisionTestRole(pool, admin.body.user.id, 'ADMIN');
-    clientToken = client.body.accessToken;
+    clientToken = extractSessionToken(client.headers['set-cookie']);
   });
 
   afterAll(async () => {
