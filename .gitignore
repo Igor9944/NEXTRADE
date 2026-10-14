@@ -16,5 +16,7 @@ logs/
 uploads/
 backend/uploads/
 .DS_Store
-.vscode/
+!.vscode/
+.vscode/*
+!.vscode/mcp.json
 .idea/

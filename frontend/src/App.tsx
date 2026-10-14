@@ -252,16 +252,16 @@ function App() {
         <Route element={<RequireAuth />}>
           <Route element={<SupplierAppShell />}>
             <Route path="/supplier/dashboard" element={<SupplierDashboardPage />} />
-            <Route path="/supplier/products" element={<SupplierPlaceholderPage />} />
-            <Route path="/supplier/pricing" element={<SupplierPlaceholderPage />} />
-            <Route path="/supplier/inventory" element={<SupplierPlaceholderPage />} />
-            <Route path="/supplier/orders" element={<SupplierPlaceholderPage />} />
-            <Route path="/supplier/shipments" element={<SupplierPlaceholderPage />} />
+            <Route path="/supplier/products" element={<SupplierPlaceholderPage titleKey="supplierNavProducts" descriptionKey="supplierProductsDescription" />} />
+            <Route path="/supplier/pricing" element={<SupplierPlaceholderPage titleKey="supplierNavPricing" descriptionKey="supplierPricingDescription" />} />
+            <Route path="/supplier/inventory" element={<SupplierPlaceholderPage titleKey="supplierNavInventory" descriptionKey="supplierInventoryDescription" />} />
+            <Route path="/supplier/orders" element={<SupplierPlaceholderPage titleKey="supplierNavOrders" descriptionKey="supplierOrdersDescription" />} />
+            <Route path="/supplier/shipments" element={<SupplierPlaceholderPage titleKey="supplierNavShipments" descriptionKey="supplierShipmentsDescription" />} />
             <Route path="/supplier/documents" element={<SupplierDocumentsPage />} />
-            <Route path="/supplier/verification" element={<SupplierPlaceholderPage />} />
+            <Route path="/supplier/verification" element={<SupplierPlaceholderPage titleKey="supplierNavVerification" descriptionKey="supplierVerificationDescription" />} />
             <Route path="/supplier/notifications" element={<SupplierNotificationsPage />} />
             <Route path="/supplier/profile" element={<SupplierProfilePage />} />
-            <Route path="/supplier/settings" element={<SupplierPlaceholderPage />} />
+            <Route path="/supplier/settings" element={<SupplierPlaceholderPage titleKey="supplierNavSettings" descriptionKey="supplierSettingsDescription" />} />
           </Route>
           <Route element={<AuthenticatedLayout />}>
             <Route path="/catalog" element={<CatalogPage />} />

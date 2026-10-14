@@ -1,4 +1,4 @@
-import { setSession, clearSession } from '../auth/session';
+import { setSession, clearSession, SessionUser } from '../auth/session';
 import { apiRequest } from './http';
 
 type AuthSuccessResponse = {

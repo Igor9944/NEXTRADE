@@ -14,6 +14,8 @@ const testProtectedRoutes_1 = __importDefault(require("../src/routes/testProtect
 const authMiddleware_1 = require("../src/middlewares/authMiddleware");
 const errorMiddleware_1 = require("../src/middlewares/errorMiddleware");
 const dotenv_1 = __importDefault(require("dotenv"));
+require("ts-node/register");
+const sessionToken_1 = require("./helpers/sessionToken");
 // Load environment variables
 dotenv_1.default.config();
 describe('Authentication System', () => {
@@ -72,7 +74,7 @@ describe('Authentication System', () => {
                 .send(TEST_USER)
                 .expect(201);
             expect(response.body).toHaveProperty('message', 'Registration successful');
-            expect(response.body).toHaveProperty('accessToken');
+            expect((0, sessionToken_1.extractSessionToken)(response.headers['set-cookie'])).toBeTruthy();
             expect(response.body.user).toHaveProperty('email', TEST_USER.email);
             expect(response.body.user).toHaveProperty('role', TEST_USER.role);
             expect(response.body.user).not.toHaveProperty('password');
@@ -108,10 +110,9 @@ describe('Authentication System', () => {
             })
                 .expect(200);
             expect(response.body).toHaveProperty('message', 'Login successful');
-            expect(response.body).toHaveProperty('accessToken');
             expect(response.body.user).toHaveProperty('email', TEST_USER.email);
             // Save token for later tests
-            accessToken = response.body.accessToken;
+            accessToken = (0, sessionToken_1.extractSessionToken)(response.headers['set-cookie']);
         });
         it('should return 401 for invalid credentials', async () => {
             const response = await (0, supertest_1.default)(app)
@@ -134,7 +135,7 @@ describe('Authentication System', () => {
                 email: TEST_USER.email,
                 password: TEST_USER.password
             });
-            accessToken = loginResponse.body.accessToken;
+            accessToken = (0, sessionToken_1.extractSessionToken)(loginResponse.headers['set-cookie']);
         });
         it('should grant access with valid token', async () => {
             const response = await (0, supertest_1.default)(app)

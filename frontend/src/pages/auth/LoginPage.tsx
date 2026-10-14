@@ -44,29 +44,34 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-md mx-auto bg-white rounded-lg shadow p-6">
-      <h1 className="text-xl font-bold mb-4">{t('loginTitle')}</h1>
-      {error && <p className="mb-3 text-red-600" role="alert">{error}</p>}
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <label className="block">
-          <span className="text-sm text-gray-600">{t('email')}</span>
-          <input id="login-email" autoComplete="email" className="mt-1 w-full border rounded px-3 py-2" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        </label>
-        <label className="block">
-          <span className="text-sm text-gray-600">{t('password')}</span>
-          <input id="login-password" autoComplete="current-password" className="mt-1 w-full border rounded px-3 py-2" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        </label>
-        <button type="submit" disabled={loading} className="w-full bg-blue-700 text-white rounded py-2 font-semibold disabled:opacity-50">
-          {loading ? t('loading') : t('submit')}
-        </button>
-      </form>
-      <div className="mt-4 text-center">
-        <p className="text-sm text-gray-600">
-          {t('dontHaveAccount')}
-          <Link to="/register" className="text-blue-700 underline hover:text-blue-800">
-            {t('register')}
-          </Link>
-        </p>
+    <div className="nextrade-ambient-background relative mx-auto max-w-md overflow-hidden rounded-[2rem] border border-white/20 p-1 shadow-[0_30px_80px_rgba(6,31,58,0.25)]">
+      <div className="rounded-[1.6rem] bg-white/82 p-7 backdrop-blur-sm">
+        <div className="mb-6 flex justify-center">
+          <img src="/assets/nextrade/nextrade-logo.png" alt="NexTrade" className="h-12 w-auto object-contain" />
+        </div>
+        <h1 className="mb-5 text-center text-2xl font-black text-[#061f3a]">{t('loginTitle')}</h1>
+        {error && <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p>}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <label className="block">
+            <span className="text-sm font-medium text-slate-600">{t('email')}</span>
+            <input id="login-email" autoComplete="email" className="mt-1 w-full rounded-xl border border-slate-200 bg-white/90 px-3 py-2.5 text-slate-700 outline-none transition focus:border-[#0b5fb3] focus:bg-white" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          </label>
+          <label className="block">
+            <span className="text-sm font-medium text-slate-600">{t('password')}</span>
+            <input id="login-password" autoComplete="current-password" className="mt-1 w-full rounded-xl border border-slate-200 bg-white/90 px-3 py-2.5 text-slate-700 outline-none transition focus:border-[#0b5fb3] focus:bg-white" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          </label>
+          <button type="submit" disabled={loading} className="w-full rounded-xl bg-[#0b5fb3] py-3 font-semibold text-white shadow-sm transition hover:bg-[#0a4f9a] disabled:cursor-not-allowed disabled:opacity-60">
+            {loading ? t('loading') : t('submit')}
+          </button>
+        </form>
+        <div className="mt-5 text-center">
+          <p className="text-sm text-slate-600">
+            {t('dontHaveAccount')}{' '}
+            <Link to="/register" className="font-semibold text-[#0b5fb3] underline-offset-2 hover:underline">
+              {t('register')}
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );
