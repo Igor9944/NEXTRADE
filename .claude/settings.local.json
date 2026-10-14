@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(git cherry-pick c18fee862a3b3cd7cc3e02a94fe74ee54594298a)"
+    ]
+  }
+}
