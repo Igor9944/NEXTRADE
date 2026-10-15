@@ -1,69 +1,67 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { LanguageSwitcher } from '../../components/LanguageSwitcher';
 import { useI18n } from '../../i18n/I18nProvider';
+import { Navigation5 } from '../../components/ui/navigation-5';
 
-const navItems = [
-  { href: '/', label: 'Accueil' },
-  { href: '/catalog', label: 'Catalogue' },
-  { href: '#features', label: 'Fonctionnalités' },
-  { href: '#logistics', label: 'Logistique' },
-  { href: '#about', label: 'À propos' }
-];
-
-export const PublicLayout: React.FC<{ children: React.ReactNode; showSignIn?: boolean }> = ({
-  children,
-  showSignIn = true
-}) => {
+export const PublicLayout: React.FC<{
+  children: React.ReactNode;
+  showSignIn?: boolean;
+}> = ({ children, showSignIn = true }) => {
   const { t } = useI18n();
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800">
-      <a className="sr-only focus:not-sr-only focus:fixed focus:start-4 focus:top-4 focus:z-50 focus:bg-white focus:p-3" href="#public-main">
+    <div className="min-h-screen bg-nextrade-soft text-nextrade-ink">
+      <a
+        className="sr-only focus:not-sr-only focus:fixed focus:start-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-nextrade-surface focus:px-4 focus:py-2 focus:shadow-panel"
+        href="#public-main"
+      >
         {t('skipToContent')}
       </a>
-      <header className="sticky top-0 z-30 border-b border-white/20 bg-[#061f3a]/80 text-white backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3 sm:px-8">
-          <Link to="/" className="flex items-center gap-3" aria-label={t('appName')}>
-            <img src="/assets/nextrade/nextrade-logo.png" alt="NexTrade" className="h-11 w-auto object-contain" />
-          </Link>
 
-          <nav className="hidden items-center gap-6 text-sm font-medium text-sky-100/85 md:flex" aria-label="Navigation principale">
-            {navItems.map((item) => (
-              <Link key={item.href} to={item.href} className="transition hover:text-white">
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-
-          <div className="flex items-center gap-3">
-            <LanguageSwitcher showAssistant={false} />
-            {showSignIn && (
-              <div className="hidden items-center gap-3 sm:flex">
-                <Link className="rounded-full border border-white/25 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:border-white/40 hover:bg-white/10" to="/login">
-                  {t('login')}
-                </Link>
-                <Link className="rounded-full bg-[#1db8ff] px-4 py-2 text-sm font-semibold text-[#061f3a] shadow-sm transition hover:bg-[#6fe1ff]" to="/register">
-                  {t('register')}
-                </Link>
-              </div>
-            )}
-          </div>
-        </div>
+      {/* Header */}
+      <header className="sticky top-0 z-30 bg-nextrade-soft/90 px-4 py-3 backdrop-blur-md sm:px-6">
+        <Navigation5 showSignIn={showSignIn} />
       </header>
+
       <main id="public-main">{children}</main>
-      <footer className="border-t border-sky-100 bg-[#061f3a] text-sky-100">
-        <div className="mx-auto flex max-w-7xl flex-col gap-6 px-5 py-10 text-sm text-sky-100/80 sm:px-8 lg:flex-row lg:items-end lg:justify-between">
-          <div className="flex items-center gap-4">
-            <img src="/assets/nextrade/nextrade-logo.png" alt="NexTrade" className="h-10 w-auto object-contain" />
-            <p className="max-w-md text-sky-100/80">
+
+      {/* Footer */}
+      <footer className="border-t border-nextrade-border/10 bg-nextrade-navy text-sky-100">
+        <div className="mx-auto grid max-w-7xl gap-8 px-5 py-12 text-sm sm:px-8 lg:grid-cols-3">
+          <div>
+            <img
+              src="/assets/nextrade/nextrade-logo.png"
+              alt="NexTrade"
+              className="mb-4 h-10 w-auto object-contain"
+            />
+            <p className="text-sky-100/70 max-w-xs leading-6">
               Connecter les marchés, créer des opportunités.
             </p>
           </div>
-          <div className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:gap-6">
-            <Link to="/catalog" className="transition hover:text-white">Catalogue</Link>
-            <Link to="/login" className="transition hover:text-white">Connexion</Link>
-            <span>{t('publicFooter')}</span>
+          <div>
+            <h3 className="mb-4 text-xs font-semibold uppercase tracking-widest text-sky-200">
+              Plateforme
+            </h3>
+            <ul className="space-y-2">
+              {[
+                { to: '/catalog', label: t('navCatalog') },
+                { to: '/login', label: t('login') },
+                { to: '/register', label: t('register') },
+              ].map((link) => (
+                <li key={link.to}>
+                  <Link
+                    to={link.to}
+                    className="text-sky-100/70 transition-colors hover:text-white"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="text-sky-100/50 text-xs">
+            <p>© {new Date().getFullYear()} NexTrade</p>
+            <p className="mt-1">Solution Export Import</p>
           </div>
         </div>
       </footer>
@@ -71,23 +69,73 @@ export const PublicLayout: React.FC<{ children: React.ReactNode; showSignIn?: bo
   );
 };
 
+/* ─── Landing Page ─── */
+
+const features = [
+  {
+    titleKey: 'featureCatalogTitle',
+    textKey: 'featureCatalogText',
+    icon: '📦',
+    href: '/catalog',
+  },
+  {
+    titleKey: 'featureOrdersTitle',
+    textKey: 'featureOrdersText',
+    icon: '🧾',
+    href: '/orders',
+  },
+  {
+    titleKey: 'featureLogisticsTitle',
+    textKey: 'featureLogisticsText',
+    icon: '🚢',
+    href: null,
+  },
+  {
+    titleKey: 'featureDocsTitle',
+    textKey: 'featureDocsText',
+    icon: '📄',
+    href: null,
+  },
+  {
+    titleKey: 'featurePaymentsTitle',
+    textKey: 'featurePaymentsText',
+    icon: '💳',
+    href: null,
+  },
+  {
+    titleKey: 'featureAITitle',
+    textKey: 'featureAIText',
+    icon: '🤖',
+    href: null,
+  },
+];
+
+const logisticsSteps = [
+  'featureStep1',
+  'featureStep2',
+  'featureStep3',
+  'featureStep4',
+];
+
 export const LandingPage: React.FC = () => {
   const { t } = useI18n();
 
   return (
     <>
-      <section className="relative overflow-hidden bg-[#061f3a] text-white">
+      {/* ─── Hero ─── */}
+      <section className="relative overflow-hidden bg-nextrade-navy text-white">
         <div className="nextrade-ambient-background absolute inset-0 opacity-100" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.35),_transparent_28%),linear-gradient(135deg,_rgba(6,31,58,0.78)_0%,_rgba(11,95,179,0.82)_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.25),_transparent_28%),linear-gradient(135deg,_rgba(11,47,112,0.80)_0%,_rgba(7,89,199,0.78)_100%)]" />
 
-        <div className="relative mx-auto grid min-h-[38rem] max-w-7xl items-center gap-12 px-5 py-16 sm:px-8 lg:grid-cols-[1.05fr_0.95fr] lg:py-20">
+        <div className="relative mx-auto grid min-h-[42rem] max-w-7xl items-center gap-12 px-5 py-16 sm:px-8 lg:grid-cols-[1.05fr_0.95fr] lg:py-24">
+          {/* Texte */}
           <div className="max-w-2xl">
-            <p className="mb-6 inline-flex rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-sky-100">
+            <p className="mb-6 inline-flex rounded-full border border-white/15 bg-nextrade-surface/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-sky-100">
               {t('publicEyebrow')}
             </p>
-            <h1 className="font-sans text-4xl font-black leading-[1.04] tracking-tight text-white sm:text-5xl lg:text-7xl">
-              Connecter les marchés,<br />
-              <span className="text-sky-300">créer des opportunités.</span>
+            <h1 className="font-inter text-4xl font-black leading-[1.04] tracking-tight text-white sm:text-5xl lg:text-6xl xl:text-7xl">
+              {t('publicHero1')}<br />
+              <span className="text-nextrade-cyan">{t('publicHero2')}</span>
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-8 text-sky-100/85">
               {t('publicDescription')}
@@ -95,75 +143,88 @@ export const LandingPage: React.FC = () => {
             <div className="mt-9 flex flex-wrap items-center gap-4">
               <Link
                 to="/login"
-                className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#1db8ff] px-6 font-semibold text-[#061f3a] shadow-lg shadow-cyan-500/20 transition hover:bg-[#67d6ff] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+                className="inline-flex min-h-12 items-center justify-center rounded-full bg-nextrade-cyan px-7 font-semibold text-nextrade-navy shadow-lg shadow-cyan-500/20 transition hover:bg-[#67d6ff] "
               >
                 {t('publicCta')}
               </Link>
               <Link
                 to="/catalog"
-                className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/20 bg-white/5 px-6 font-semibold text-white transition hover:bg-white/10"
+                className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/20 bg-nextrade-surface/5 px-7 font-semibold text-white transition hover:bg-nextrade-surface/10"
               >
-                Explorer le catalogue
+                {t('publicCatalogCta')}
               </Link>
             </div>
 
-            <div className="mt-10 flex flex-wrap gap-6 text-sm text-sky-100/80">
-              <div>
-                <span className="block text-2xl font-black text-white">2.4K+</span>
-                <span>partenaires</span>
-              </div>
-              <div>
-                <span className="block text-2xl font-black text-white">98.7%</span>
-                <span>suivi documentaire</span>
-              </div>
-              <div>
-                <span className="block text-2xl font-black text-white">24/7</span>
-                <span>assistant IA</span>
-              </div>
+            {/* Stats */}
+            <div className="mt-12 flex flex-wrap gap-8 text-sm text-nextrade-muted">
+              {[
+                { value: '2.4K+', label: t('statPartners') },
+                { value: '98.7%', label: t('statDocTracking') },
+                { value: '24/7', label: t('statAI') },
+              ].map((stat) => (
+                <div key={stat.label}>
+                  <span className="block text-2xl font-black text-white">{stat.value}</span>
+                  <span>{stat.label}</span>
+                </div>
+              ))}
             </div>
           </div>
 
+          {/* Card dashboard flottante */}
           <div className="relative flex items-center justify-center">
-            <div className="absolute inset-4 rounded-[2rem] border border-white/10 bg-white/5 backdrop-blur-sm" />
-            <div className="relative w-full max-w-xl rounded-[2rem] border border-white/10 bg-white/95 p-5 shadow-[0_30px_80px_rgba(4,16,31,0.45)]">
+            <div className="absolute inset-4 rounded-xl4 border border-white/10 bg-nextrade-surface/5 backdrop-blur-sm" />
+            <div className="relative w-full max-w-xl rounded-xl4 border border-white/10 bg-nextrade-surface/95 p-5 shadow-float">
               <div className="flex items-center justify-between pb-4">
-                <div className="flex items-center gap-3">
-                  <img src="/assets/nextrade/nextrade-logo.png" alt="NexTrade" className="h-12 w-auto object-contain" />
-                </div>
-                <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                  Opérations en direct
+                <img
+                  src="/assets/nextrade/nextrade-logo.png"
+                  alt="NexTrade"
+                  className="h-11 w-auto object-contain"
+                />
+                <span className="rounded-full bg-success-50 px-2.5 py-1 text-xs font-semibold text-success-700">
+                  {t('heroLive')}
                 </span>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl bg-[#eff7ff] p-4">
-                  <p className="text-xs uppercase tracking-[0.14em] text-sky-700">Catalogue</p>
-                  <p className="mt-2 text-3xl font-black text-[#061f3a]">1,280</p>
-                  <p className="mt-2 text-sm text-slate-600">produits actifs</p>
+                <div className="rounded-xl2 bg-nextrade-ice p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-nextrade-blue">
+                    {t('navCatalog')}
+                  </p>
+                  <p className="mt-2 text-3xl font-black text-nextrade-ink">1 280</p>
+                  <p className="mt-1 text-sm text-nextrade-muted">{t('heroActiveProducts')}</p>
                 </div>
-                <div className="rounded-2xl bg-[#f4fbf8] p-4">
-                  <p className="text-xs uppercase tracking-[0.14em] text-emerald-700">Commandes</p>
-                  <p className="mt-2 text-3xl font-black text-[#061f3a]">438</p>
-                  <p className="mt-2 text-sm text-slate-600">en cours</p>
+                <div className="rounded-xl2 bg-success-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-success-700">
+                    {t('navOrders')}
+                  </p>
+                  <p className="mt-2 text-3xl font-black text-nextrade-ink">438</p>
+                  <p className="mt-1 text-sm text-nextrade-muted">{t('heroActiveOrders')}</p>
                 </div>
-                <div className="rounded-2xl bg-[#f5f7fb] p-4 sm:col-span-2">
-                  <div className="flex items-center justify-between text-sm text-slate-600">
-                    <span>Expéditions</span>
-                    <span className="font-semibold text-emerald-600">87% à temps</span>
+                <div className="rounded-xl2 bg-nextrade-soft p-4 sm:col-span-2">
+                  <div className="flex items-center justify-between text-sm text-nextrade-muted">
+                    <span>{t('navShipments')}</span>
+                    <span className="font-semibold text-success-500">87% {t('heroOnTime')}</span>
                   </div>
-                  <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-200">
-                    <div className="h-full w-[87%] rounded-full bg-gradient-to-r from-[#0b5fb3] to-[#1db8ff]" />
+                  <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-200">
+                    <div className="h-full w-[87%] rounded-full bg-gradient-to-r from-nextrade-blue to-nextrade-cyan" />
                   </div>
                 </div>
               </div>
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                {['Catalogue', 'Paiements', 'Logistique'].map((item, index) => (
-                  <div key={item} className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-center">
-                    <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[#dfeeff] text-lg text-[#0b5fb3]">
-                      {['📦', '💳', '🚚'][index]}
+              <div className="mt-4 grid grid-cols-3 gap-3">
+                {[
+                  { label: t('navCatalog'), icon: '📦' },
+                  { label: t('navPayments'), icon: '💳' },
+                  { label: t('navShipments'), icon: '🚢' },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    className="rounded-xl2 border border-slate-200 bg-nextrade-soft p-3 text-center"
+                  >
+                    <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-nextrade-ice text-lg">
+                      {item.icon}
                     </div>
-                    <p className="text-sm font-semibold text-slate-700">{item}</p>
+                    <p className="text-xs font-semibold text-nextrade-ink">{item.label}</p>
                   </div>
                 ))}
               </div>
@@ -172,72 +233,105 @@ export const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      <section id="features" className="mx-auto max-w-7xl px-5 py-20 sm:px-8">
+      {/* ─── Features ─── */}
+      <section id="features" className="scroll-mt-24 mx-auto max-w-7xl px-5 py-20 sm:px-8">
         <div className="mb-12 max-w-2xl">
-          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#0b5fb3]">{t('publicSectionLabel')}</p>
-          <h2 className="mt-4 text-3xl font-black text-[#061f3a] sm:text-5xl">
-            Une plateforme pensée pour le commerce international.
+          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-nextrade-blue">
+            {t('publicSectionLabel')}
+          </p>
+          <h2 className="mt-4 text-3xl font-black text-nextrade-ink sm:text-5xl">
+            {t('featuresHeading')}
           </h2>
         </div>
 
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {[
-            { title: 'Catalogue commercial', text: 'Consultez les offres, les prix et les profils de fournisseurs approuvés.', icon: '📦' },
-            { title: 'Achats & commandes', text: 'Créez, suivez et validez les commandes dans un workflow unique.', icon: '🧾' },
-            { title: 'Logistique', text: 'Surveillez les expéditions, les livraisons et les transporteurs.', icon: '🚚' },
-            { title: 'Documents & factures', text: 'Centralisez dossiers, factures, bordereaux et formalités.', icon: '📄' },
-            { title: 'Paiements', text: 'Suivez les règlements et les transactions commerciales.', icon: '💳' },
-            { title: 'Assistant IA', text: 'Obtenez de l’aide sur les décisions, les documents et les opérations.', icon: '🤖' }
-          ].map((feature) => (
-            <article key={feature.title} className="group rounded-[1.75rem] border border-sky-100 bg-white p-6 shadow-[0_20px_40px_rgba(15,23,42,0.04)] transition hover:-translate-y-1 hover:shadow-[0_30px_60px_rgba(11,95,179,0.10)]">
-              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#eaf7ff] text-2xl text-[#0b5fb3]">
+          {features.map((feature) => (
+            <article
+              key={feature.titleKey}
+              className="group rounded-xl3 border border-nextrade-border bg-nextrade-surface p-6 shadow-card transition hover:-translate-y-1 hover:shadow-panel"
+            >
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-nextrade-ice text-2xl">
                 {feature.icon}
               </div>
-              <h3 className="text-xl font-bold text-[#061f3a]">{feature.title}</h3>
-              <p className="mt-3 text-sm leading-6 text-slate-600">{feature.text}</p>
+              <h3 className="text-lg font-bold text-nextrade-ink">{t(feature.titleKey)}</h3>
+              <p className="mt-3 text-sm leading-6 text-nextrade-muted">{t(feature.textKey)}</p>
             </article>
           ))}
         </div>
       </section>
 
-      <section id="logistics" className="bg-slate-100/80">
+      {/* ─── Logistique ─── */}
+      <section id="logistics" className="scroll-mt-24 bg-slate-100/80">
         <div className="mx-auto grid max-w-7xl gap-10 px-5 py-20 sm:px-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#0b5fb3]">Logistique</p>
-            <h2 className="mt-4 text-3xl font-black text-[#061f3a] sm:text-5xl">
-              Des opérations qui restent lisibles de la commande à la livraison.
-            </h2>
-            <p className="mt-5 max-w-lg text-base leading-7 text-slate-600">
-              Chaque étape de votre chaîne commerciale est centralisée pour améliorer la visibilité, limiter les surprises et accélérer les échanges entre acteurs.
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-nextrade-blue">
+              {t('publicNavLogistics')}
             </p>
-            <div className="mt-8 space-y-4">
-              {['Explorer les produits', 'Créer une commande', 'Suivre l’expédition', 'Consulter les documents'].map((step, index) => (
-                <div key={step} className="flex items-center gap-4 rounded-2xl border border-sky-100 bg-white p-4 shadow-sm">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#dfeeff] text-sm font-bold text-[#0b5fb3]">
+            <h2 className="mt-4 text-3xl font-black text-nextrade-ink sm:text-5xl">
+              {t('logisticsHeading')}
+            </h2>
+            <p className="mt-5 max-w-lg text-base leading-7 text-nextrade-muted">
+              {t('logisticsDescription')}
+            </p>
+            <div className="mt-8 space-y-3">
+              {logisticsSteps.map((key, index) => (
+                <div
+                  key={key}
+                  className="flex items-center gap-4 rounded-xl2 border border-nextrade-border bg-nextrade-surface p-4 shadow-sm"
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-nextrade-ice text-sm font-bold text-nextrade-blue">
                     {index + 1}
                   </div>
-                  <span className="font-medium text-slate-700">{step}</span>
+                  <span className="font-medium text-nextrade-ink">{t(key)}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white p-4 shadow-[0_30px_70px_rgba(10,35,71,0.10)]">
-            <div className="logistics-reference h-[26rem] rounded-[1.5rem] border border-sky-100 bg-slate-200" />
+          <div className="relative overflow-hidden rounded-xl4 border border-nextrade-border bg-nextrade-surface p-4 shadow-panel">
+            <img
+              src="/assets/nextrade/logistics-icons-reference.jpeg"
+              alt="Illustrations logistique : livraison, fret maritime, aérien, entrepôt, conteneur"
+              className="h-[26rem] w-full rounded-xl3 object-cover"
+            />
           </div>
         </div>
       </section>
 
-      <section id="about" className="mx-auto max-w-7xl px-5 py-20 sm:px-8">
-        <div className="rounded-[2rem] bg-[#061f3a] p-8 text-white md:p-12">
-          <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
+      {/* ─── About ─── */}
+      <section id="about" className="scroll-mt-24 mx-auto max-w-7xl px-5 py-20 sm:px-8">
+        <div className="relative overflow-hidden rounded-xl4 bg-nextrade-navy p-8 text-white md:p-12">
+          {/* Pattern décoratif */}
+          <div
+            className="nextrade-pattern absolute inset-0 opacity-[0.04] mix-blend-overlay"
+            aria-hidden="true"
+          />
+          <div className="relative grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-sky-200">NexTrade</p>
-              <h2 className="mt-3 text-3xl font-black sm:text-5xl">Fournir une expérience efficace et fiable.</h2>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-nextrade-cyan">
+                NexTrade
+              </p>
+              <h2 className="mt-3 text-3xl font-black sm:text-5xl">
+                {t('aboutHeading')}
+              </h2>
             </div>
-            <p className="max-w-xl text-base leading-7 text-sky-100/80">
-              La plateforme regroupe les acteurs — fournisseurs, acheteurs, transporteurs et administrations — autour d’un système cohérent pour piloter les opérations commerciales et logistiques.
+            <p className="max-w-xl text-base leading-7 text-nextrade-muted">
+              {t('aboutDescription')}
             </p>
+          </div>
+          <div className="relative mt-10 flex flex-wrap gap-4">
+            <Link
+              to="/login"
+              className="inline-flex min-h-11 items-center rounded-full bg-nextrade-cyan px-6 font-semibold text-nextrade-navy transition hover:bg-[#67d6ff]"
+            >
+              {t('publicCta')}
+            </Link>
+            <Link
+              to="/catalog"
+              className="inline-flex min-h-11 items-center rounded-full border border-white/20 bg-nextrade-surface/5 px-6 font-semibold text-white transition hover:bg-nextrade-surface/10"
+            >
+              {t('publicCatalogCta')}
+            </Link>
           </div>
         </div>
       </section>

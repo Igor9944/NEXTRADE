@@ -1,15 +1,41 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useI18n } from '../../i18n/I18nProvider';
+import { PageHeader, Card, CardContent, Badge, Button } from '../../components/ui';
 
-const SupplierPlaceholderPage: React.FC<{ titleKey: string; descriptionKey: string }> = ({ titleKey, descriptionKey }) => {
+const SupplierPlaceholderPage: React.FC<{
+  titleKey: string;
+  descriptionKey: string;
+}> = ({ titleKey, descriptionKey }) => {
   const { t } = useI18n();
   return (
-    <section className="rounded-xl border bg-white p-8 text-center shadow-sm">
-      <h1 className="text-2xl font-bold">{t(titleKey)}</h1>
-      <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-600">{t(descriptionKey)}</p>
-      <Link to="/supplier/dashboard" className="mt-6 inline-block rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white">{t('supplierBackToDashboard')}</Link>
-    </section>
+    <div className="space-y-6">
+      <PageHeader
+        title={t(titleKey)}
+        description={t('supplierWorkspace')}
+      />
+      <Card className="max-w-xl">
+        <CardContent className="py-12 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-nextrade-ice text-3xl">
+            🔧
+          </div>
+          <div className="mb-2">
+            <Badge variant="info">Bientôt disponible</Badge>
+          </div>
+          <p className="mt-3 max-w-xs mx-auto text-sm leading-6 text-nextrade-muted">
+            {t(descriptionKey)}
+          </p>
+          <Button
+            variant="outline"
+            as={Link}
+            to="/supplier/dashboard"
+            className="mt-6"
+          >
+            {t('supplierBackToDashboard')}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

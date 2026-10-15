@@ -1,19 +1,44 @@
 {
-  "inputs": [
-    {
-      "type": "promptString",
-      "id": "stitch-api-key",
-      "description": "Google API key for Stitch MCP",
-      "password": true
-    }
-  ],
-  "servers": {
-    "stitch": {
-      "type": "http",
-      "url": "https://stitch.googleapis.com/mcp",
-      "headers": {
-        "X-Goog-Api-Key": "${input:stitch-api-key}"
-      }
-    }
-  }
+	"servers": {
+		"stitch": {
+			"type": "http",
+			"url": "https://stitch.googleapis.com/mcp",
+			"headers": {
+				"X-Goog-Api-Key": "${input:stitch-api-key}"
+			}
+		},
+		"io.github.f/prompts.chat-mcp": {
+			"type": "stdio",
+			"command": "npx",
+			"args": [
+				"@fkadev/prompts.chat-mcp@1.0.9"
+			],
+			"env": {
+				"PROMPTS_API_KEY": "${input:PROMPTS_API_KEY}",
+				"PROMPTS_QUERY": "${input:PROMPTS_QUERY}"
+			},
+			"gallery": "https://api.mcp.github.com",
+			"version": "1.0.9"
+		}
+	},
+	"inputs": [
+		{
+			"type": "promptString",
+			"id": "stitch-api-key",
+			"description": "Google API key for Stitch MCP",
+			"password": true
+		},
+		{
+			"id": "PROMPTS_API_KEY",
+			"type": "promptString",
+			"description": "API key for authenticated requests (enables save_prompt tool)",
+			"password": true
+		},
+		{
+			"id": "PROMPTS_QUERY",
+			"type": "promptString",
+			"description": "Query string to filter prompts (e.g., users=a,b&categories=c,d&tags=e,f)",
+			"password": false
+		}
+	]
 }

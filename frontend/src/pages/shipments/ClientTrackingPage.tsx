@@ -2,12 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { shipmentService } from '../../services/shipmentService';
 import { Shipment } from '../../types/shipment';
+import { ShipmentTimeline } from '../../components/ShipmentTimeline';
 import { useI18n } from '../../i18n/I18nProvider';
-
-const formatDate = (value?: string | null) => {
-  if (!value) return '—';
-  return new Date(value).toLocaleString();
-};
+import {
+  PageHeader,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Badge,
+  EmptyState,
+  statusToBadge,
+} from '../../components/ui';
+import { formatDate, formatStatus } from '../../lib/format';
 
 const ClientTrackingPage: React.FC = () => {
   const { t } = useI18n();
@@ -22,47 +29,85 @@ const ClientTrackingPage: React.FC = () => {
         const rows = result?.data?.shipments ?? [];
         setShipments(Array.isArray(rows) ? rows : []);
       })
-      .catch((err) => setError(err.message || 'Erreur de chargement'))
+      .catch((err) => setError(err.message ?? 'Erreur'))
       .finally(() => setLoading(false));
   }, []);
 
-  return (
-    <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-      <h1 className="text-xl font-bold mb-4">{t('myShipments')}</h1>
-      {error && <p className="text-red-600 mb-3">{error}</p>}
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-sm">
-          <thead>
-            <tr className="text-left border-b">
-              <th className="py-2 pr-3">{t('reference')}</th>
-              <th className="py-2 pr-3">{t('order')}</th>
-              <th className="py-2 pr-3">{t('status')}</th>
-              <th className="py-2 pr-3">{t('carrier')}</th>
-              <th className="py-2 pr-3">{t('tracking')}</th>
-              <th className="py-2">{t('details')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {shipments.map((shipment) => (
-              <tr key={shipment.id_shipment} className="border-b">
-                <td className="py-2 pr-3">{shipment.reference_shipment}</td>
-                <td className="py-2 pr-3">{shipment.id_order.slice(0, 8)}…</td>
-                <td className="py-2 pr-3">{shipment.statut}</td>
-                <td className="py-2 pr-3">{shipment.carrier_name || '—'}</td>
-                <td className="py-2 pr-3">{shipment.numero_suivi || '—'}</td>
-                <td className="py-2">
-                  <Link className="text-blue-700 underline" to={`/shipments/${shipment.id_shipment}`}>
-                    Voir
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="h-40 animate-pulse rounded-xl3 bg-slate-200" />
+        ))}
       </div>
-      {loading && <p className="text-gray-500">Chargement...</p>}
-      {shipments.length === 0 && !error && !loading && <p className="mt-4 text-gray-500">Aucune expédition.</p>}
-      <p className="mt-4 text-xs text-gray-400">Dates affichées selon le serveur : {formatDate(shipments[0]?.date_expedition)}</p>
+    );
+  }
+
+  if (error) {
+    return <EmptyState variant="error" title="Erreur" description={error} />;
+  }
+
+  if (shipments.length === 0) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title={t('myShipments')} />
+        <EmptyState
+          variant="empty"
+          title="Aucune expédition"
+          description="Vos expéditions apparaîtront ici une fois vos commandes expédiées."
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <PageHeader title={t('myShipments')} description={`${shipments.length} expédition(s)`} />
+
+      <div className="grid gap-4">
+        {shipments.map((s) => (
+          <Card key={s.id_shipment}>
+            <CardHeader>
+              <div className="flex flex-col gap-1">
+                <span className="font-mono text-xs text-nextrade-muted">
+                  {s.reference_shipment}
+                </span>
+                <CardTitle>{s.destination ?? s.shipping_address ?? 'Destination inconnue'}</CardTitle>
+              </div>
+              <Badge variant={statusToBadge(s.statut)}>{formatStatus(s.statut)}</Badge>
+            </CardHeader>
+            <CardContent>
+              <dl className="mb-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+                <div>
+                  <dt className="text-xs text-nextrade-muted">Transporteur</dt>
+                  <dd className="font-medium">{s.carrier_name ?? '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-nextrade-muted">Suivi</dt>
+                  <dd className="font-mono text-xs">{s.numero_suivi ?? '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-nextrade-muted">Livraison prévue</dt>
+                  <dd className="font-medium">{formatDate(s.date_livraison_estimee)}</dd>
+                </div>
+              </dl>
+
+              <div className="rounded-xl2 bg-nextrade-soft p-4">
+                <ShipmentTimeline status={s.statut} />
+              </div>
+
+              <div className="mt-3 flex justify-end">
+                <Link
+                  to={`/shipments/${s.id_shipment}`}
+                  className="text-sm font-semibold text-nextrade-blue hover:underline underline-offset-2"
+                >
+                  Voir le détail →
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 };

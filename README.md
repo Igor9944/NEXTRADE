@@ -102,15 +102,29 @@ sudo -u postgres psql -d nextrade -c "GRANT ALL PRIVILEGES ON DATABASE nextrade 
 
 Mettez à jour les fichiers `.env` du backend et du service IA avec vos identifiants de base de données.
 
-### 7. Docker (optionnel)
+### 7. Docker (développement)
 
-Si vous préférez utiliser Docker, assurez-vous que Docker et Docker Compose sont installés, puis démarrez le service PostgreSQL :
+Avec Docker Engine et Docker Compose installés, lancez l'application complète depuis
+la racine du dépôt :
 
 ```bash
-docker-compose up -d db
+docker compose up --build
 ```
 
-Cela démarrera un conteneur PostgreSQL configuré pour NexTrade.
+Au premier démarrage, PostgreSQL initialise une nouvelle base avec les migrations
+dans `database/migrations/`. Les services sont ensuite disponibles ici :
+
+- Site web : `http://localhost:5174`
+- API : `http://localhost:3000/health`
+- Mailpit : `http://localhost:8025`
+- PostgreSQL : `localhost:5433` (accessible uniquement depuis la machine locale)
+
+Le frontend et l'API tournent en mode développement avec rechargement automatique.
+Les données PostgreSQL et les fichiers téléversés persistent dans des volumes Docker.
+Les identifiants par défaut du Compose sont réservés au développement local ; définissez
+`POSTGRES_PASSWORD` et `JWT_SECRET` dans l'environnement avant tout usage partagé.
+Pour arrêter les services sans supprimer les données, utilisez `docker compose down`.
+N'utilisez pas `docker compose down -v` sauf si vous souhaitez supprimer les volumes.
 
 ## Lancement des services
 

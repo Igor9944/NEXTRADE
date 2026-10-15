@@ -90,6 +90,16 @@ This document outlines the development workflow and useful commands for working 
 
 ## Database
 
+### Docker Compose
+
+From the repository root, run `docker compose up --build` to start the frontend,
+backend, PostgreSQL, and Mailpit for local development. The site is available at
+`http://localhost:5174`, the API health endpoint at `http://localhost:3000/health`,
+and the Mailpit UI at `http://localhost:8025`. On first initialization, PostgreSQL
+applies the ordered SQL files in `database/migrations/`. Data and uploaded files
+persist in named Docker volumes; `docker compose down` stops services without
+removing those volumes.
+
 ### Commands (using psql)
 
 - Connect to the database:

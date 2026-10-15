@@ -9,9 +9,12 @@
     "test": "playwright test"
   },
   "dependencies": {
+    "clsx": "^2.1.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^7.18.4"
+    "react-router-dom": "^7.18.4",
+    "recharts": "^2.15.4",
+    "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
@@ -20,6 +23,8 @@
     "@types/react-dom": "^18.0.0",
     "@vitejs/plugin-react": "^4.0.0",
     "autoprefixer": "^10.4.13",
+    "mockserver": "^3.1.1",
+    "pg-mock": "^1.0.1",
     "playwright": "^1.63.0",
     "postcss": "^8.4.21",
     "tailwindcss": "^3.2.7",

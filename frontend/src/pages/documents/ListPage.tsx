@@ -4,12 +4,40 @@ import { documentService } from '../../services/documentService';
 import { TradeDocument } from '../../types/document';
 import { getSessionUser } from '../../auth/session';
 import { useI18n } from '../../i18n/I18nProvider';
+import {
+  PageHeader,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Badge,
+  Button,
+  DataTable,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  TableActions,
+  Select,
+  statusToBadge,
+} from '../../components/ui';
+import { Input } from '../../components/ui/Input';
+import { formatDate, formatStatus } from '../../lib/format';
+
+const typeOptions = [
+  { value: '', label: 'Tous les types' },
+  ...['FACTURE_COMMERCIALE', 'PACKING_LIST', 'CERTIFICAT_ORIGINE', 'DOCUMENT_DOUANE', 'DOCUMENT_TRANSPORT', 'AUTRE']
+    .map((v) => ({ value: v, label: formatStatus(v) })),
+];
 
 const DocumentsListPage: React.FC = () => {
   const { t } = useI18n();
   const user = getSessionUser();
   const [documents, setDocuments] = useState<TradeDocument[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [orderId, setOrderId] = useState('');
   const [type, setType] = useState('');
   const [invoiceOrderId, setInvoiceOrderId] = useState('');
@@ -18,117 +46,189 @@ const DocumentsListPage: React.FC = () => {
   const [uploadType, setUploadType] = useState('PACKING_LIST');
 
   const load = () => {
+    setLoading(true);
     documentService
       .list({ id_order: orderId || undefined, type_document: type || undefined })
       .then((result) => setDocuments(result.data.documents))
-      .catch((err) => setError(err.message));
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
   };
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
 
   return (
-    <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-      <h1 className="text-xl font-bold mb-4">{t('documentsTitle')}</h1>
-      {error && <p className="text-red-600 mb-3">{error}</p>}
-      <form
-        className="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-4"
-        onSubmit={(event) => {
-          event.preventDefault();
-          load();
-        }}
-      >
-        <input className="border rounded px-3 py-2" placeholder={t('orderUuid')} value={orderId} onChange={(e) => setOrderId(e.target.value)} />
-        <select className="border rounded px-3 py-2" value={type} onChange={(e) => setType(e.target.value)}>
-          <option value="">{t('allTypes')}</option>
-          {['FACTURE_COMMERCIALE', 'PACKING_LIST', 'CERTIFICAT_ORIGINE', 'DOCUMENT_DOUANE', 'DOCUMENT_TRANSPORT', 'AUTRE'].map((value) => (
-            <option key={value} value={value}>{value}</option>
-          ))}
-        </select>
-        <button className="bg-gray-800 text-white rounded px-4 py-2" type="submit">{t('filter')}</button>
+    <div className="space-y-6">
+      <PageHeader title={t('documentsTitle')} />
+
+      {/* Filtres */}
+      <form className="flex flex-col gap-3 sm:flex-row" onSubmit={(e) => { e.preventDefault(); load(); }}>
+        <Input
+          placeholder={t('orderUuid')}
+          value={orderId}
+          onChange={(e) => setOrderId(e.target.value)}
+          aria-label="Filtrer par commande"
+        />
+        <Select
+          options={typeOptions}
+          value={type}
+          onChange={(e) => setType(e.target.value)}
+          className="w-full sm:w-56"
+        />
+        <Button type="submit" variant="secondary" className="shrink-0">
+          {t('filter')}
+        </Button>
       </form>
 
+      {/* Actions admin */}
       {user?.role === 'ADMIN' && (
-        <div className="grid gap-4 md:grid-cols-2 mb-6">
-          <form
-            className="border rounded p-3 space-y-2"
-            onSubmit={async (event) => {
-              event.preventDefault();
-              setError(null);
-              try {
-                const result = await documentService.generateInvoice(invoiceOrderId);
-                window.location.href = `/invoices/${result.data.invoice.id_invoice}`;
-              } catch (err: any) {
-                setError(err.message);
-              }
-            }}
-          >
-            <h2 className="font-semibold">{t('generateInvoice')}</h2>
-            <input className="border rounded px-3 py-2 w-full" placeholder={t('orderUuid')} value={invoiceOrderId} onChange={(e) => setInvoiceOrderId(e.target.value)} />
-            <button className="bg-blue-700 text-white rounded px-4 py-2" type="submit">{t('createInvoicePdf')}</button>
-          </form>
-          <form
-            className="border rounded p-3 space-y-2"
-            onSubmit={async (event) => {
-              event.preventDefault();
-              setError(null);
-              if (!file) return;
-              const form = new FormData();
-              form.append('file', file);
-              form.append('type_document', uploadType);
-              form.append('id_order', uploadOrderId);
-              try {
-                await documentService.upload(form);
-                load();
-              } catch (err: any) {
-                setError(err.message);
-              }
-            }}
-          >
-            <h2 className="font-semibold">Uploader un document</h2>
-            <input className="border rounded px-3 py-2 w-full" placeholder="UUID commande" value={uploadOrderId} onChange={(e) => setUploadOrderId(e.target.value)} />
-            <select className="border rounded px-3 py-2 w-full" value={uploadType} onChange={(e) => setUploadType(e.target.value)}>
-              <option value="PACKING_LIST">PACKING_LIST</option>
-              <option value="AUTRE">AUTRE</option>
-              <option value="DOCUMENT_DOUANE">DOCUMENT_DOUANE</option>
-            </select>
-            <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-            <button className="bg-blue-700 text-white rounded px-4 py-2" type="submit">Uploader</button>
-          </form>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader><CardTitle>{t('generateInvoice')}</CardTitle></CardHeader>
+            <CardContent>
+              <form
+                className="flex gap-3"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setError(null);
+                  try {
+                    const result = await documentService.generateInvoice(invoiceOrderId);
+                    window.location.href = `/invoices/${result.data.invoice.id_invoice}`;
+                  } catch (err: unknown) {
+                    setError(err instanceof Error ? err.message : 'Erreur');
+                  }
+                }}
+              >
+                <Input
+                  placeholder={t('orderUuid')}
+                  value={invoiceOrderId}
+                  onChange={(e) => setInvoiceOrderId(e.target.value)}
+                  className="flex-1"
+                />
+                <Button type="submit" variant="primary" className="shrink-0">
+                  {t('createInvoicePdf')}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle>Uploader un document</CardTitle></CardHeader>
+            <CardContent>
+              <form
+                className="space-y-3"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setError(null);
+                  if (!file) return;
+                  const form = new FormData();
+                  form.append('file', file);
+                  form.append('type_document', uploadType);
+                  form.append('id_order', uploadOrderId);
+                  try {
+                    await documentService.upload(form);
+                    load();
+                  } catch (err: unknown) {
+                    setError(err instanceof Error ? err.message : 'Erreur');
+                  }
+                }}
+              >
+                <Input
+                  placeholder="UUID commande"
+                  value={uploadOrderId}
+                  onChange={(e) => setUploadOrderId(e.target.value)}
+                />
+                <Select
+                  options={[
+                    { value: 'PACKING_LIST', label: 'Packing List' },
+                    { value: 'DOCUMENT_DOUANE', label: 'Document douane' },
+                    { value: 'AUTRE', label: 'Autre' },
+                  ]}
+                  value={uploadType}
+                  onChange={(e) => setUploadType(e.target.value)}
+                />
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                  className="text-sm text-nextrade-muted"
+                />
+                <Button type="submit" variant="outline">Uploader</Button>
+              </form>
+            </CardContent>
+          </Card>
         </div>
       )}
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-sm">
-          <thead>
-            <tr className="text-left border-b">
-              <th className="py-2 pr-3">Référence</th>
-              <th className="py-2 pr-3">Type</th>
-              <th className="py-2 pr-3">Fichier</th>
-              <th className="py-2 pr-3">Commande</th>
-              <th className="py-2">Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {documents.map((document) => (
-              <tr key={document.id_document} className="border-b">
-                <td className="py-2 pr-3">
-                  <Link className="text-blue-700 underline" to={`/documents/${document.id_document}`}>
-                    {document.reference_document}
+      {error && (
+        <p role="alert" className="text-sm text-danger-500">{error}</p>
+      )}
+
+      {/* Tableau */}
+      <DataTable
+        loading={loading}
+        error={!error ? null : error}
+        empty={documents.length === 0}
+        emptyTitle="Aucun document"
+        emptyDescription="Aucun document disponible avec ces filtres."
+        cols={5}
+      >
+        <Table>
+          <TableHeader>
+            <TableHead>Référence</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Fichier</TableHead>
+            <TableHead>Commande</TableHead>
+            <TableHead>Date</TableHead>
+            <TableHead />
+          </TableHeader>
+          <TableBody>
+            {documents.map((doc) => (
+              <TableRow key={doc.id_document}>
+                <TableCell>
+                  <Link
+                    to={`/documents/${doc.id_document}`}
+                    className="font-mono text-xs font-semibold text-nextrade-blue hover:underline"
+                  >
+                    {doc.reference_document}
                   </Link>
-                </td>
-                <td className="py-2 pr-3">{document.type_document}</td>
-                <td className="py-2 pr-3">{document.original_file_name || document.nom_fichier}</td>
-                <td className="py-2 pr-3">{document.id_order ? (
-                  <Link className="text-blue-700 underline" to={`/documents/dossier/${document.id_order}`}>Dossier</Link>
-                ) : '—'}</td>
-                <td className="py-2">{new Date(document.created_at).toLocaleString()}</td>
-              </tr>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="neutral">{formatStatus(doc.type_document)}</Badge>
+                </TableCell>
+                <TableCell muted>{doc.original_file_name ?? doc.nom_fichier}</TableCell>
+                <TableCell>
+                  {doc.id_order ? (
+                    <Link
+                      to={`/documents/dossier/${doc.id_order}`}
+                      className="text-xs text-nextrade-blue hover:underline"
+                    >
+                      Dossier →
+                    </Link>
+                  ) : (
+                    '—'
+                  )}
+                </TableCell>
+                <TableCell muted>{formatDate(doc.created_at)}</TableCell>
+                <TableActions>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      documentService
+                        .download(doc.id_document)
+                        .catch((err: unknown) =>
+                          setError(err instanceof Error ? err.message : 'Erreur')
+                        )
+                    }
+                  >
+                    ↓
+                  </Button>
+                </TableActions>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </DataTable>
     </div>
   );
 };

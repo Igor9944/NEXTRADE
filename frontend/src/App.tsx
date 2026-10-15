@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   BrowserRouter,
-  Link,
   Navigate,
   Outlet,
   Route,
@@ -26,11 +25,8 @@ import PayPage from './pages/payments/PayPage';
 import CatalogPage from './pages/catalog/CatalogPage';
 import ProductPage from './pages/catalog/ProductPage';
 import OrdersPage from './pages/orders/OrdersPage';
-import { clearSession, getSessionUser, SessionUser, UserRole } from './auth/session';
-import { useI18n } from './i18n/I18nProvider';
-import { LanguageSwitcher } from './components/LanguageSwitcher';
-import { AssistantPanel, AssistantToggle } from './components/AssistantPanel';
-import DashboardPage from './pages/admin/DashboardPage';
+import { getSessionUser, UserRole } from './auth/session';
+const DashboardPage = React.lazy(() => import('./pages/admin/DashboardPage'));
 import SuppliersPage from './pages/admin/SuppliersPage';
 import NotificationsPage from './pages/notifications/NotificationsPage';
 import { LandingPage, PublicLayout } from './pages/public/PublicPages';
@@ -40,7 +36,9 @@ import SupplierDocumentsPage from './pages/supplier/SupplierDocumentsPage';
 import SupplierNotificationsPage from './pages/supplier/SupplierNotificationsPage';
 import SupplierPlaceholderPage from './pages/supplier/SupplierPlaceholderPage';
 import SupplierProfilePage from './pages/supplier/SupplierProfilePage';
-import { logout } from './services/authService';
+import SupplierProductsPage from './pages/supplier/SupplierProductsPage';
+import SupplierOrdersPage from './pages/supplier/SupplierOrdersPage';
+import { AuthenticatedLayout } from './components/layout/AuthenticatedLayout';
 
 type NavigationItem = { path: string; label: string };
 
@@ -52,6 +50,7 @@ const roleHome = (role: UserRole): string => {
 };
 
 function roleCanVisitPath(role: UserRole, path: string): boolean {
+  // eslint-disable-next-line no-param-reassign
   path = path.length > 1 ? path.replace(/\/+$/, '') : path;
   if (path.startsWith('/supplier/')) return role === 'FOURNISSEUR';
   if (path.startsWith('/admin/')) return role === 'ADMIN';
@@ -129,115 +128,7 @@ function RequireAuth() {
   return <Outlet />;
 }
 
-function privateNavigation(user: SessionUser, t: (key: string) => string): NavigationItem[] {
-  const byRole: Record<UserRole, Array<[string, string]>> = {
-    ADMIN: [
-      ['/admin/dashboard', 'navDashboard'],
-      ['/admin/suppliers', 'navSuppliers'],
-      ['/shipments', 'navShipments'],
-      ['/catalog', 'navCatalog'],
-      ['/orders', 'navOrders'],
-      ['/import-export', 'navImportExport'],
-      ['/documents', 'navDocuments'],
-      ['/payments', 'navPayments'],
-      ['/notifications', 'navNotifications']
-    ],
-    CLIENT: [
-      ['/catalog', 'navCatalog'],
-      ['/orders', 'navOrders'],
-      ['/import-export', 'navImportExport'],
-      ['/shipments/my', 'navTracking'],
-      ['/documents', 'navDocuments'],
-      ['/payments', 'navPayments'],
-      ['/notifications', 'navNotifications']
-    ],
-    FOURNISSEUR: [
-      ['/catalog', 'navCatalog'],
-      ['/import-export', 'navImportExport'],
-      ['/documents', 'navDocuments'],
-      ['/notifications', 'navNotifications']
-    ],
-    COMMERCANT: [
-      ['/catalog', 'navCatalog'],
-      ['/orders', 'navOrders'],
-      ['/shipments/my', 'navTracking'],
-      ['/import-export', 'navImportExport'],
-      ['/documents', 'navDocuments'],
-      ['/payments', 'navPayments'],
-      ['/notifications', 'navNotifications']
-    ],
-    TRANSPORTEUR: [
-      ['/shipments/assigned', 'navTours'],
-      ['/documents', 'navDocuments'],
-      ['/notifications', 'navNotifications']
-    ]
-  };
 
-  return (byRole[user.role] || []).map(([path, label]) => ({ path, label: t(label) }));
-}
-
-function AuthenticatedLayout() {
-  const location = useLocation();
-  const user = getSessionUser();
-  const { t } = useI18n();
-  const [assistantOpen, setAssistantOpen] = useState(
-    () => (location.state as { openAssistant?: boolean } | null)?.openAssistant === true
-  );
-
-  if (!user) return <Navigate to="/login" replace state={{ from: location }} />;
-
-  const navigation = privateNavigation(user, t);
-  return (
-    <div className="min-h-screen bg-gray-50 md:flex">
-      <aside className="w-full shrink-0 border-b bg-white p-4 md:min-h-screen md:w-60 md:border-b-0 md:border-e">
-        <a className="sr-only focus:not-sr-only focus:mb-4 focus:block focus:bg-white focus:p-3" href="#private-main">
-          {t('skipToContent')}
-        </a>
-        <Link to={roleHome(user.role)} className="mb-6 block text-lg font-bold text-gray-800">
-          {t('appName')}
-        </Link>
-        <nav aria-label={t('privateNavigation')} className="flex gap-3 overflow-x-auto pb-2 text-sm md:flex-col md:overflow-visible">
-          {navigation.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              aria-current={location.pathname === item.path ? 'page' : undefined}
-              className={`shrink-0 text-blue-700 ${location.pathname === item.path ? 'font-semibold underline underline-offset-4' : ''}`}
-            >
-              {item.label}
-            </Link>
-          ))}
-          <button
-            className="shrink-0 text-start text-blue-700"
-            aria-expanded={assistantOpen}
-            aria-controls={assistantOpen ? 'assistant-panel' : undefined}
-            onClick={() => setAssistantOpen(true)}
-          >
-            {t('navAssistant')}
-          </button>
-        </nav>
-        <div className="mt-5"><LanguageSwitcher /></div>
-        <div className="mt-4 flex items-center gap-3 md:block">
-          <span className="text-xs text-gray-500">{user.role}</span>
-          <button
-            className="text-sm text-gray-600 underline underline-offset-4"
-            onClick={async () => {
-              await logout();
-              window.location.assign('/login');
-            }}
-          >
-            {t('logout')}
-          </button>
-        </div>
-      </aside>
-      <main id="private-main" tabIndex={-1} className="min-w-0 flex-1 px-4 py-6 sm:px-6">
-        <div className="mx-auto max-w-6xl"><Outlet /></div>
-      </main>
-      <AssistantToggle open={assistantOpen} onOpenChange={setAssistantOpen} />
-      <AssistantPanel open={assistantOpen} onClose={() => setAssistantOpen(false)} />
-    </div>
-  );
-}
 
 function App() {
   return (
@@ -252,10 +143,10 @@ function App() {
         <Route element={<RequireAuth />}>
           <Route element={<SupplierAppShell />}>
             <Route path="/supplier/dashboard" element={<SupplierDashboardPage />} />
-            <Route path="/supplier/products" element={<SupplierPlaceholderPage titleKey="supplierNavProducts" descriptionKey="supplierProductsDescription" />} />
+            <Route path="/supplier/products" element={<SupplierProductsPage />} />
+            <Route path="/supplier/orders" element={<SupplierOrdersPage />} />
             <Route path="/supplier/pricing" element={<SupplierPlaceholderPage titleKey="supplierNavPricing" descriptionKey="supplierPricingDescription" />} />
             <Route path="/supplier/inventory" element={<SupplierPlaceholderPage titleKey="supplierNavInventory" descriptionKey="supplierInventoryDescription" />} />
-            <Route path="/supplier/orders" element={<SupplierPlaceholderPage titleKey="supplierNavOrders" descriptionKey="supplierOrdersDescription" />} />
             <Route path="/supplier/shipments" element={<SupplierPlaceholderPage titleKey="supplierNavShipments" descriptionKey="supplierShipmentsDescription" />} />
             <Route path="/supplier/documents" element={<SupplierDocumentsPage />} />
             <Route path="/supplier/verification" element={<SupplierPlaceholderPage titleKey="supplierNavVerification" descriptionKey="supplierVerificationDescription" />} />
@@ -263,11 +154,18 @@ function App() {
             <Route path="/supplier/profile" element={<SupplierProfilePage />} />
             <Route path="/supplier/settings" element={<SupplierPlaceholderPage titleKey="supplierNavSettings" descriptionKey="supplierSettingsDescription" />} />
           </Route>
-          <Route element={<AuthenticatedLayout />}>
+          <Route element={<AuthenticatedLayout />}>{/* routes authentifiées */}
             <Route path="/catalog" element={<CatalogPage />} />
             <Route path="/catalog/:id" element={<ProductPage />} />
             <Route path="/orders" element={<OrdersPage />} />
-            <Route path="/admin/dashboard" element={<DashboardPage />} />
+            <Route
+              path="/admin/dashboard"
+              element={(
+                <React.Suspense fallback={<div className="sr-only" role="status">Chargement du tableau de bord…</div>}>
+                  <DashboardPage />
+                </React.Suspense>
+              )}
+            />
             <Route path="/admin/suppliers" element={<SuppliersPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/import-export" element={<ListPage />} />

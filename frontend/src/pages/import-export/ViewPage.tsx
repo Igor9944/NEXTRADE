@@ -1,349 +1,249 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { ImportExportService } from '../../services/importExportService';
 import { documentService } from '../../services/documentService';
 import { getSessionUser } from '../../auth/session';
-import {
-  ImportExportOperationWithDetails,
-  ImportExportOperationType,
-  ImportExportOperationStatus,
-  TransportMode,
-  CustomsFormalityStatus,
-} from '../../types/importExport';
+import { ImportExportOperationWithDetails, ImportExportOperationStatus } from '../../types/importExport';
 import { TradeDocument } from '../../types/document';
+import {
+  PageHeader,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Badge,
+  Button,
+  DataTable,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  Select,
+  EmptyState,
+  statusToBadge,
+} from '../../components/ui';
+import { formatDate, formatStatus } from '../../lib/format';
 
 const importExportService = new ImportExportService();
 
+const transportLabels: Record<string, string> = {
+  MARITIME: 'Maritime',
+  AERIEN: 'Aérien',
+  ROUTIER: 'Routier',
+  FERROVIAIRE: 'Ferroviaire',
+  AUTRE: 'Autre',
+};
+
 const ViewPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const [operation, setOperation] = useState<ImportExportOperationWithDetails | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [newStatus, setNewStatus] = useState<ImportExportOperationStatus | ''>('');
-  const [docs, setDocs] = useState<TradeDocument[]>([]);
   const user = getSessionUser();
+  const [operation, setOperation] = useState<ImportExportOperationWithDetails | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [docs, setDocs] = useState<TradeDocument[]>([]);
+  const [newStatus, setNewStatus] = useState<ImportExportOperationStatus | ''>('');
+  const [updating, setUpdating] = useState(false);
 
-  useEffect(() => {
-    if (id) {
-      fetchOperation(id);
-    }
-  }, [id]);
-
-  const fetchOperation = async (operationId: string) => {
+  const fetchOperation = async (opId: string) => {
     setLoading(true);
     setError(null);
-    setSuccess(null);
     try {
-      const result = await importExportService.getOperationById(operationId);
+      const result = await importExportService.getOperationById(opId);
       setOperation(result);
       try {
-        const files = await documentService.listOperationDocuments(operationId);
+        const files = await documentService.listOperationDocuments(opId);
         setDocs(files.data.documents);
       } catch {
         setDocs([]);
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while fetching the operation');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erreur');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleStatusChange = async () => {
-    if (!newStatus || !id) return;
-    setLoading(true);
-    try {
-      await importExportService.updateOperationStatus(id, newStatus);
-      setSuccess('Status updated successfully!');
-      setOperation(prev => {
-        if (!prev) return null;
-        return { ...prev, operation: { ...prev.operation, statut: newStatus } };
-      });
-      setNewStatus('');
-    } catch (err: any) {
-      setError(err.message || 'Failed to update status');
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => { if (id) fetchOperation(id); }, [id]);
 
-  if (loading) {
-    return <div className="p-6">Loading...</div>;
-  }
-
-  if (error) {
-    return <div className="p-6 text-red-500">{error}</div>;
-  }
-
-  if (!operation) {
-    return <div className="p-6 text-center">Operation not found</div>;
+  if (loading) return <div className="h-64 animate-pulse rounded-xl3 bg-slate-200" />;
+  if (error || !operation) {
+    return <EmptyState variant="error" title="Opération introuvable" description={error ?? ''} />;
   }
 
   const op = operation.operation;
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">
-        Operation: {op.reference_operation}
-      </h1>
-      
-      {error && <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-500 rounded">{error}</div>}
-      {success && <div className="mb-4 p-4 bg-green-50 border border-green-200 text-green-500 rounded">{success}</div>}
-      
-      <div className="grid grid-cols-1 gap-6 mb-6">
-        {/* Basic Info */}
-        <div className="border rounded p-4">
-          <h2 className="text-xl font-bold mb-4">Operation Information</h2>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Type</p>
-              <p className="text-lg font-medium">
-                {op.type_operation === 'IMPORT' ? 'Import' : 'Export'}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Reference</p>
-              <p className="text-lg font-medium break-all">{op.reference_operation}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Linked Order</p>
-              <p className="text-lg font-medium">{op.id_order || 'None'}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Linked Purchase</p>
-              <p className="text-lg font-medium">{op.id_purchase || 'None'}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Origin Country</p>
-              <p className="text-lg font-medium">{op.pays_origine}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Destination Country</p>
-              <p className="text-lg font-medium">{op.pays_destination}</p>
-            </div>
-          </div>
-          
-          <div className="mt-4">
-            <p className="text-sm font-medium text-gray-500">Status</p>
-            <div className="flex items-center">
-              <span
-                className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                  op.statut === 'PREPARATION' ? 'bg-blue-100 text-blue-800' :
-                  op.statut === 'EXPEDIEE' ? 'bg-green-100 text-green-800' :
-                  op.statut === 'EN_TRANSIT' ? 'bg-yellow-100 text-yellow-800' :
-                  op.statut === 'ARRIVEE' ? 'bg-indigo-100 text-indigo-800' :
-                  op.statut === 'DOUANE' ? 'bg-purple-100 text-purple-800' :
-                  op.statut === 'LIVREE' ? 'bg-gray-100 text-gray-800' :
-                  'bg-red-100 text-red-800'
-                }`}
-              >
-                {op.statut}
-              </span>
-            </div>
-          </div>
-          
-          <div className="mt-4">
-            <p className="text-sm font-medium text-gray-500">Transport Mode</p>
-            <p className="text-lg font-medium">
-              {op.mode_transport === 'MARITIME' ? 'Maritime' :
-               op.mode_transport === 'AERIEN' ? 'Air' :
-               op.mode_transport === 'ROUTIER' ? 'Road' :
-               op.mode_transport === 'FERROVIAIRE' ? 'Rail' :
-               op.mode_transport === 'AUTRE' ? 'Other' : '-'}
-            </p>
-          </div>
-          
-          <div className="mt-4">
-            <p className="text-sm font-medium text-gray-500">Date of Departure</p>
-            <p className="text-lg font-medium">
-              {op.date_depart ? new Date(op.date_depart).toLocaleDateString() : '-'}
-            </p>
-          </div>
-          
-          <div className="mt-4">
-            <p className="text-sm font-medium text-gray-500">Expected Arrival Date</p>
-            <p className="text-lg font-medium">
-              {op.date_arrivee_prevue ? new Date(op.date_arrivee_prevue).toLocaleDateString() : '-'}
-            </p>
-          </div>
-          
-          <div className="mt-4">
-            <p className="text-sm font-medium text-gray-500">Actual Arrival Date</p>
-            <p className="text-lg font-medium">
-              {op.date_arrivee_reelle ? new Date(op.date_arrivee_reelle).toLocaleDateString() : '-'}
-            </p>
-          </div>
+    <div className="space-y-6">
+      <PageHeader
+        title={`Opération ${op.reference_operation}`}
+        breadcrumbs={[{ label: 'Import/Export', href: '/import-export' }, { label: op.reference_operation }]}
+      />
+
+      <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+        {/* Informations */}
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Informations</CardTitle>
+              <Badge variant={statusToBadge(op.statut)}>{formatStatus(op.statut)}</Badge>
+            </CardHeader>
+            <CardContent>
+              <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                {[
+                  { label: 'Type', value: op.type_operation },
+                  { label: 'Transport', value: transportLabels[op.mode_transport] ?? op.mode_transport },
+                  { label: 'Origine', value: op.pays_origine },
+                  { label: 'Destination', value: op.pays_destination },
+                  { label: 'Départ', value: formatDate(op.date_depart) },
+                  { label: 'Arrivée prévue', value: formatDate(op.date_arrivee_prevue) },
+                  { label: 'Arrivée réelle', value: formatDate(op.date_arrivee_reelle) },
+                ].map(({ label, value }) => (
+                  <div key={label}>
+                    <dt className="text-xs text-nextrade-muted">{label}</dt>
+                    <dd className="mt-0.5 font-medium">{value || '—'}</dd>
+                  </div>
+                ))}
+              </dl>
+            </CardContent>
+          </Card>
+
+          {/* Articles */}
+          <Card>
+            <CardHeader><CardTitle>Articles ({operation.items.length})</CardTitle></CardHeader>
+            <CardContent className="p-0">
+              <DataTable loading={false} empty={operation.items.length === 0} emptyTitle="Aucun article" cols={3}>
+                <Table>
+                  <TableHeader>
+                    <TableHead>ID Produit</TableHead>
+                    <TableHead>Quantité</TableHead>
+                    <TableHead>Unité</TableHead>
+                  </TableHeader>
+                  <TableBody>
+                    {operation.items.map((item) => (
+                      <TableRow key={item.id_item}>
+                        <TableCell><span className="font-mono text-xs">{item.id_product}</span></TableCell>
+                        <TableCell>{item.quantite}</TableCell>
+                        <TableCell muted>{item.unite ?? '—'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </DataTable>
+            </CardContent>
+          </Card>
         </div>
-        
-        {/* Status Update Section */}
-        <div className="border rounded p-4">
-          <h2 className="text-xl font-bold mb-4">Update Status</h2>
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            handleStatusChange();
-          }} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">New Status</label>
-              <select
-                value={newStatus}
-                onChange={(e) => setNewStatus(e.target.value as ImportExportOperationStatus)}
-                className="w-full px-3 py-2 border rounded"
-              >
-                <option value="">Select a status</option>
-                <option value="PREPARATION">Preparation</option>
-                <option value="EXPEDIEE">Expedited</option>
-                <option value="EN_TRANSIT">In Transit</option>
-                <option value="ARRIVEE">Arrived</option>
-                <option value="DOUANE">Customs</option>
-                <option value="LIVREE">Delivered</option>
-                <option value="ANNULEE">Cancelled</option>
-              </select>
-            </div>
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={loading || !newStatus}
-                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
-              >
-                {loading ? 'Updating...' : 'Update Status'}
-              </button>
-            </div>
-          </form>
-        </div>
-        
-        {/* Items */}
-        <div className="border rounded p-4">
-          <h2 className="text-xl font-bold mb-4">Items ({operation.items.length})</h2>
-          {operation.items.length === 0 ? (
-            <p className="text-gray-500">No items found for this operation.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Product ID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Quantity
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Unit
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {operation.items.map((item) => (
-                    <tr key={item.id_item} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.id_product}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.quantite}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.unite || '-'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-        
-        {/* Formalities */}
-        <div className="border rounded p-4">
-          <h2 className="text-xl font-bold mb-4">Customs Formalities ({operation.formalities.length})</h2>
-          {operation.formalities.length === 0 ? (
-            <p className="text-gray-500">No formalities found for this operation.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Created At
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {operation.formalities.map((formality) => (
-                    <tr key={formality.id_formality} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formality.type_formality}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span
-                          className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                            formality.statut === 'A_FAIRE' ? 'bg-yellow-100 text-yellow-800' :
-                            formality.statut === 'EN_COURS' ? 'bg-blue-100 text-blue-800' :
-                            formality.statut === 'TERMINE' ? 'bg-green-100 text-green-800' :
-                            'bg-red-100 text-red-800'
-                          }`}
-                        >
-                          {formality.statut}
-                        </span>
-                        {user?.role === 'ADMIN' && formality.statut !== 'TERMINE' && (
-                          <button
-                            className="ml-2 text-blue-700 underline"
+
+        {/* Actions + Formalités + Documents */}
+        <div className="space-y-4">
+          {/* Mise à jour statut */}
+          <Card>
+            <CardHeader><CardTitle>Mettre à jour le statut</CardTitle></CardHeader>
+            <CardContent>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Select
+                    placeholder="Choisir un statut"
+                    options={['PREPARATION', 'EXPEDIEE', 'EN_TRANSIT', 'ARRIVEE', 'DOUANE', 'LIVREE', 'ANNULEE']
+                      .map((v) => ({ value: v, label: formatStatus(v) }))}
+                    value={newStatus}
+                    onChange={(e) => setNewStatus(e.target.value as ImportExportOperationStatus)}
+                  />
+                </div>
+                <Button
+                  variant="primary"
+                  loading={updating}
+                  disabled={!newStatus}
+                  onClick={async () => {
+                    if (!newStatus || !id) return;
+                    setUpdating(true);
+                    try {
+                      await importExportService.updateOperationStatus(id, newStatus);
+                      setOperation((prev) =>
+                        prev ? { ...prev, operation: { ...prev.operation, statut: newStatus } } : null
+                      );
+                      setNewStatus('');
+                    } catch (err: unknown) {
+                      setError(err instanceof Error ? err.message : 'Erreur');
+                    } finally {
+                      setUpdating(false);
+                    }
+                  }}
+                >
+                  Appliquer
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Formalités douanières */}
+          <Card>
+            <CardHeader><CardTitle>Formalités ({operation.formalities.length})</CardTitle></CardHeader>
+            <CardContent>
+              {operation.formalities.length === 0 ? (
+                <p className="text-sm text-nextrade-muted">Aucune formalité.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {operation.formalities.map((f) => (
+                    <li key={f.id_formality} className="flex items-center justify-between gap-3">
+                      <span className="text-sm">{formatStatus(f.type_formality)}</span>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={statusToBadge(f.statut)}>{formatStatus(f.statut)}</Badge>
+                        {user?.role === 'ADMIN' && f.statut !== 'TERMINE' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={async () => {
-                              const next = formality.statut === 'A_FAIRE' ? 'EN_COURS' : formality.statut === 'EN_COURS' ? 'TERMINE' : 'EN_COURS';
+                              const next = f.statut === 'A_FAIRE' ? 'EN_COURS' : 'TERMINE';
                               try {
-                                await documentService.updateFormality(formality.id_formality, next);
+                                await documentService.updateFormality(f.id_formality, next);
                                 if (id) fetchOperation(id);
-                              } catch (err: any) {
-                                setError(err.message);
+                              } catch (err: unknown) {
+                                setError(err instanceof Error ? err.message : 'Erreur');
                               }
                             }}
                           >
                             Avancer
-                          </button>
+                          </Button>
                         )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formality.created_at ? new Date(formality.created_at).toLocaleString() : '—'}
-                      </td>
-                    </tr>
+                      </div>
+                    </li>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+                </ul>
+              )}
+            </CardContent>
+          </Card>
 
-        <div className="border rounded p-4">
-          <h2 className="text-xl font-bold mb-4">Documents ({docs.length})</h2>
-          {docs.length === 0 ? (
-            <p className="text-gray-500">Aucun document lié à cette opération.</p>
-          ) : (
-            <ul className="space-y-2 text-sm">
-              {docs.map((doc) => (
-                <li key={doc.id_document}>
-                  <a className="text-blue-700 underline" href={`/documents/${doc.id_document}`}>
-                    {doc.reference_document} — {doc.type_document}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
+          {/* Documents liés */}
+          <Card>
+            <CardHeader><CardTitle>Documents ({docs.length})</CardTitle></CardHeader>
+            <CardContent>
+              {docs.length === 0 ? (
+                <p className="text-sm text-nextrade-muted">Aucun document lié.</p>
+              ) : (
+                <ul className="space-y-1">
+                  {docs.map((doc) => (
+                    <li key={doc.id_document}>
+                      <Link
+                        to={`/documents/${doc.id_document}`}
+                        className="text-sm text-nextrade-blue hover:underline"
+                      >
+                        {doc.reference_document} — {formatStatus(doc.type_document)}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
-      
-      <div className="mt-6 flex justify-end space-x-2">
-        <a
-          href="/import-export"
-          className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
-        >
-          Back to List
-        </a>
+
+      <div className="flex justify-end">
+        <Button variant="ghost" as={Link} to="/import-export">
+          ← Retour à la liste
+        </Button>
       </div>
     </div>
   );

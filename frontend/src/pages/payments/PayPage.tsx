@@ -4,10 +4,24 @@ import { paymentService } from '../../services/paymentService';
 import { PaymentTransaction } from '../../types/payment';
 import { getSessionUser } from '../../auth/session';
 import { useI18n } from '../../i18n/I18nProvider';
+import {
+  PageHeader,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Badge,
+  Button,
+  EmptyState,
+  statusToBadge,
+} from '../../components/ui';
+import { Select } from '../../components/ui/Select';
+import { Input } from '../../components/ui/Input';
+import { formatPrice, formatStatus } from '../../lib/format';
 
 const PayPage: React.FC = () => {
   const [params] = useSearchParams();
-  const presetOrderId = params.get('orderId') || '';
+  const presetOrderId = params.get('orderId') ?? '';
   const [orderId, setOrderId] = useState(presetOrderId);
   const { t } = useI18n();
   const user = getSessionUser();
@@ -15,7 +29,9 @@ const PayPage: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [transaction, setTransaction] = useState<PaymentTransaction | null>(null);
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
-  const [orders, setOrders] = useState<Array<{ id_order: string; montant_total: string; statut: string }>>([]);
+  const [orders, setOrders] = useState<
+    Array<{ id_order: string; montant_total: string; statut: string }>
+  >([]);
 
   const refresh = async (id: string) => {
     const result = await paymentService.getById(id);
@@ -26,18 +42,32 @@ const PayPage: React.FC = () => {
     if (!user) return;
     paymentService
       .listOrders()
-      .then((result) => setOrders(result.data || []))
+      .then((result) => setOrders(result.data ?? []))
       .catch((err) => setError(err.message));
   }, [user?.id]);
 
   useEffect(() => {
     if (!transaction?.id_transaction) return;
-    if (transaction.statut_transaction === 'VALIDEE' || transaction.statut_transaction === 'ECHOUEE') return;
+    if (['VALIDEE', 'ECHOUEE'].includes(transaction.statut_transaction ?? '')) return;
     const timer = window.setInterval(() => {
       refresh(transaction.id_transaction).catch((err) => setError(err.message));
     }, 4000);
     return () => window.clearInterval(timer);
   }, [transaction?.id_transaction, transaction?.statut_transaction]);
+
+  if (!user) {
+    return (
+      <EmptyState
+        variant="restricted"
+        title={t('loginRequired')}
+        action={
+          <Button variant="primary" as={Link} to="/login">
+            {t('loginToContinue')}
+          </Button>
+        }
+      />
+    );
+  }
 
   const pay = async () => {
     setError(null);
@@ -56,105 +86,119 @@ const PayPage: React.FC = () => {
     }
   };
 
-  if (!user) {
-    return (
-      <div className="bg-white rounded-lg shadow p-6">
-        {t('loginRequired')} <Link className="text-blue-700 underline" to="/login">{t('loginToContinue')}</Link>
-      </div>
-    );
-  }
+  const orderOptions = orders.map((o) => ({
+    value: o.id_order,
+    label: `${o.id_order.slice(0, 8)}… — ${formatPrice(o.montant_total)} — ${formatStatus(o.statut)}`,
+  }));
 
   return (
-    <div className="bg-white rounded-lg shadow p-4 sm:p-6 space-y-4">
-      <h1 className="text-xl font-bold">{t('payTitle')}</h1>
-      <p className="text-sm text-gray-600">{t('payHint')}</p>
-      {orders.length > 0 && (
-        <label className="block text-sm">
-          {t('orders')}
-          <select
-            className="mt-1 w-full border rounded px-3 py-2"
+    <div className="space-y-6">
+      <PageHeader title={t('payTitle')} />
+
+      <Card className="max-w-xl">
+        <CardHeader><CardTitle>{t('payHint')}</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          {orders.length > 0 && (
+            <Select
+              label={t('orders')}
+              placeholder={t('chooseOrder')}
+              options={orderOptions}
+              value={orderId}
+              onChange={(e) => setOrderId(e.target.value)}
+            />
+          )}
+
+          <Input
+            label={t('orderId')}
             value={orderId}
-            onChange={(event) => setOrderId(event.target.value)}
-          >
-            <option value="">{t('chooseOrder')}</option>
-            {orders.map((order) => (
-              <option key={order.id_order} value={order.id_order}>
-                {order.id_order} — {order.montant_total} — {order.statut}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-      <label className="block text-sm">
-        {t('orderId')}
-        <input
-          className="mt-1 w-full border rounded px-3 py-2"
-          value={orderId}
-          readOnly={Boolean(presetOrderId)}
-          onChange={(event) => setOrderId(event.target.value)}
-        />
-      </label>
-      {error && <p className="text-red-600 text-sm">{error}</p>}
-      <button
-        className="bg-blue-700 text-white rounded px-4 py-2 disabled:opacity-50"
-        disabled={busy || !orderId}
-        onClick={pay}
-      >
-        {busy ? t('initiating') : t('pay')}
-      </button>
-      {transaction && transaction.statut_transaction !== 'VALIDEE' &&
-        String(transaction.provider || transaction.methode_paiement || '').toLowerCase().includes('sandbox') && (
-        <button
-          className="ms-2 bg-emerald-700 text-white rounded px-4 py-2 disabled:opacity-50"
-          disabled={busy}
-          onClick={async () => {
-            setError(null);
-            setBusy(true);
-            try {
-              const result = await paymentService.confirmSandbox(transaction.id_transaction);
-              setTransaction(result.data.transaction);
-              const ordersResult = await paymentService.listOrders();
-              setOrders(ordersResult.data || []);
-            } catch (err) {
-              setError(err instanceof Error ? err.message : t('error'));
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          {t('confirmDemoPay')}
-        </button>
-      )}
-      {checkoutUrl && (
-        <p className="text-sm">
-          Redirection passerelle : <a className="text-blue-700 underline" href={checkoutUrl}>{checkoutUrl}</a>
-        </p>
-      )}
+            readOnly={Boolean(presetOrderId)}
+            onChange={(e) => setOrderId(e.target.value)}
+          />
+
+          {error && (
+            <p role="alert" className="text-sm text-danger-500">{error}</p>
+          )}
+
+          <div className="flex flex-wrap gap-3">
+            <Button
+              variant="primary"
+              loading={busy}
+              disabled={!orderId}
+              onClick={pay}
+            >
+              {t('pay')}
+            </Button>
+
+            {/* Bouton sandbox uniquement si la transaction est sandbox */}
+            {transaction &&
+              transaction.statut_transaction !== 'VALIDEE' &&
+              String(transaction.provider ?? transaction.methode_paiement ?? '').toLowerCase().includes('sandbox') && (
+                <Button
+                  variant="secondary"
+                  loading={busy}
+                  onClick={async () => {
+                    setError(null);
+                    setBusy(true);
+                    try {
+                      const result = await paymentService.confirmSandbox(transaction.id_transaction);
+                      setTransaction(result.data.transaction);
+                      const ordersResult = await paymentService.listOrders();
+                      setOrders(ordersResult.data ?? []);
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : t('error'));
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  {t('confirmDemoPay')}
+                </Button>
+              )}
+          </div>
+
+          {checkoutUrl && (
+            <p className="text-sm text-nextrade-muted">
+              Redirection :{' '}
+              <a className="text-nextrade-blue underline" href={checkoutUrl}>
+                {checkoutUrl}
+              </a>
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Détails transaction */}
       {transaction && (
-        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-          <div>
-            <dt className="text-gray-500">{t('transaction')}</dt>
-            <dd className="break-all">{transaction.id_transaction}</dd>
-          </div>
-          <div>
-            <dt className="text-gray-500">{t('amount')}</dt>
-            <dd>
-              {transaction.montant_paye} {transaction.devise || ''}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-gray-500">{t('status')}</dt>
-            <dd>{transaction.statut_transaction}</dd>
-          </div>
-          <div>
-            <dt className="text-gray-500">{t('extRef')}</dt>
-            <dd className="break-all">{transaction.reference_externe || '—'}</dd>
-          </div>
-          <div>
-            <dt className="text-gray-500">{t('provider')}</dt>
-            <dd>{transaction.provider || '—'}</dd>
-          </div>
-        </dl>
+        <Card className="max-w-xl">
+          <CardHeader>
+            <CardTitle>{t('transaction')}</CardTitle>
+            <Badge variant={statusToBadge(transaction.statut_transaction ?? '')}>
+              {formatStatus(transaction.statut_transaction ?? '')}
+            </Badge>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid gap-3 text-sm sm:grid-cols-2">
+              <div>
+                <dt className="text-xs text-nextrade-muted">ID</dt>
+                <dd className="break-all font-mono text-xs">{transaction.id_transaction}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-nextrade-muted">{t('amount')}</dt>
+                <dd className="font-semibold">
+                  {formatPrice(transaction.montant_paye, transaction.devise ?? 'XOF')}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-nextrade-muted">{t('extRef')}</dt>
+                <dd className="break-all font-mono text-xs">{transaction.reference_externe ?? '—'}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-nextrade-muted">{t('provider')}</dt>
+                <dd>{transaction.provider ?? '—'}</dd>
+              </div>
+            </dl>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

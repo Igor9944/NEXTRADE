@@ -2,47 +2,111 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { documentService } from '../../services/documentService';
 import { HistoryItem, TradeDocument } from '../../types/document';
+import {
+  PageHeader,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Badge,
+  Button,
+  EmptyState,
+} from '../../components/ui';
+import { IconDownload } from '../../components/icons';
+import { formatDateTime, formatStatus } from '../../lib/format';
 
 const DocumentDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const [document, setDocument] = useState<TradeDocument | null>(null);
+  const [doc, setDoc] = useState<TradeDocument | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!id) return;
     documentService
       .getById(id)
       .then((result) => {
-        setDocument(result.data.document);
+        setDoc(result.data.document);
         setHistory(result.data.history);
       })
-      .catch((err) => setError(err.message));
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
   }, [id]);
 
-  if (error) return <div className="bg-white rounded-lg shadow p-6 text-red-600">{error}</div>;
-  if (!document) return <div className="bg-white rounded-lg shadow p-6">Chargement...</div>;
+  if (loading) return <div className="h-64 animate-pulse rounded-xl3 bg-slate-200" />;
+
+  if (error || !doc) {
+    return (
+      <EmptyState variant="error" title="Document introuvable" description={error ?? ''} />
+    );
+  }
 
   return (
-    <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-      <h1 className="text-xl font-bold mb-4">{document.reference_document}</h1>
-      <p className="mb-2">{document.type_document}</p>
-      <p className="mb-4 text-sm text-gray-600">{document.original_file_name || document.nom_fichier}</p>
-      <button
-        className="bg-blue-700 text-white rounded px-4 py-2 mb-6"
-        onClick={() => documentService.download(document.id_document).catch((err) => setError(err.message))}
-      >
-        Télécharger
-      </button>
-      <h2 className="font-semibold mb-2">Historique</h2>
-      <ul className="text-sm space-y-2">
-        {history.map((item) => (
-          <li key={item.id_history} className="border-b pb-2">
-            {item.action} {item.old_status || '—'} → {item.new_status || '—'}
-            <div className="text-gray-500">{new Date(item.created_at).toLocaleString()}</div>
-          </li>
-        ))}
-      </ul>
+    <div className="space-y-6">
+      <PageHeader
+        title={doc.reference_document}
+        breadcrumbs={[{ label: 'Documents', href: '/documents' }, { label: doc.reference_document }]}
+      />
+
+      <div className="grid gap-6 lg:grid-cols-[1fr_auto]">
+        <Card>
+          <CardHeader>
+            <CardTitle>Informations</CardTitle>
+            <Badge variant="neutral">{formatStatus(doc.type_document)}</Badge>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid gap-3 text-sm sm:grid-cols-2">
+              <div>
+                <dt className="text-xs text-nextrade-muted">Fichier</dt>
+                <dd className="font-medium">{doc.original_file_name ?? doc.nom_fichier}</dd>
+              </div>
+              {doc.id_order && (
+                <div>
+                  <dt className="text-xs text-nextrade-muted">Commande liée</dt>
+                  <dd className="font-mono text-xs">{doc.id_order.slice(0, 8)}…</dd>
+                </div>
+              )}
+            </dl>
+            <Button
+              variant="primary"
+              size="md"
+              className="mt-5"
+              iconLeft={<IconDownload className="h-4 w-4" />}
+              onClick={() =>
+                documentService
+                  .download(doc.id_document)
+                  .catch((err: unknown) =>
+                    setError(err instanceof Error ? err.message : 'Erreur')
+                  )
+              }
+            >
+              Télécharger
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="lg:w-80">
+          <CardHeader><CardTitle>Historique</CardTitle></CardHeader>
+          <CardContent>
+            <ol className="space-y-3 text-sm">
+              {history.map((item) => (
+                <li key={item.id_history} className="flex items-start gap-2">
+                  <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-nextrade-blue" aria-hidden />
+                  <div>
+                    <p className="text-nextrade-ink">
+                      {item.action} {item.old_status ? `${item.old_status} →` : ''}{' '}
+                      {item.new_status ?? '—'}
+                    </p>
+                    <p className="text-xs text-nextrade-muted">{formatDateTime(item.created_at)}</p>
+                  </div>
+                </li>
+              ))}
+              {history.length === 0 && <p className="text-nextrade-muted">Aucun historique.</p>}
+            </ol>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

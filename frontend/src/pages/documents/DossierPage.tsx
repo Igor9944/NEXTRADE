@@ -3,11 +3,24 @@ import { Link, useParams } from 'react-router-dom';
 import { documentService } from '../../services/documentService';
 import { CustomsFormality, Invoice, TradeDocument } from '../../types/document';
 import { getSessionUser } from '../../auth/session';
+import {
+  PageHeader,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Badge,
+  Button,
+  EmptyState,
+  statusToBadge,
+} from '../../components/ui';
+import { formatStatus } from '../../lib/format';
 
 const DossierPage: React.FC = () => {
   const { orderId } = useParams<{ orderId: string }>();
   const user = getSessionUser();
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [factures, setFactures] = useState<TradeDocument[]>([]);
   const [packing, setPacking] = useState<TradeDocument[]>([]);
@@ -16,6 +29,7 @@ const DossierPage: React.FC = () => {
 
   const load = () => {
     if (!orderId) return;
+    setLoading(true);
     documentService
       .getOrderDossier(orderId)
       .then((result) => {
@@ -25,85 +39,146 @@ const DossierPage: React.FC = () => {
         setAutres(result.data.autres);
         setFormalities(result.data.formalities);
       })
-      .catch((err) => setError(err.message));
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
   };
 
-  useEffect(() => {
-    load();
-  }, [orderId]);
+  useEffect(() => { load(); }, [orderId]);
 
-  if (error) return <div className="bg-white rounded-lg shadow p-6 text-red-600">{error}</div>;
+  if (loading) return <div className="h-64 animate-pulse rounded-xl3 bg-slate-200" />;
+  if (error) return <EmptyState variant="error" title="Erreur" description={error} />;
 
   return (
-    <div className="space-y-4">
-      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-        <h1 className="text-xl font-bold mb-2">Dossier documentaire</h1>
-        <p className="text-sm text-gray-600 break-all">Commande {orderId}</p>
-        {orderId && (user?.role === 'CLIENT' || user?.role === 'ADMIN') && (
-          <Link className="inline-block mt-3 text-blue-700 underline mr-4" to={`/payments?orderId=${orderId}`}>
-            Payer cette commande
-          </Link>
-        )}
-        {user?.role === 'ADMIN' && orderId && !invoice && (
-          <button
-            className="mt-3 bg-blue-700 text-white rounded px-4 py-2"
-            onClick={() =>
-              documentService
-                .generateInvoice(orderId)
-                .then(() => load())
-                .catch((err) => setError(err.message))
-            }
-          >
-            Générer la facture
-          </button>
-        )}
+    <div className="space-y-6">
+      <PageHeader
+        title="Dossier documentaire"
+        description={`Commande ${orderId}`}
+        breadcrumbs={[{ label: 'Documents', href: '/documents' }, { label: 'Dossier' }]}
+        actions={
+          <div className="flex gap-2">
+            {orderId && (user?.role === 'CLIENT' || user?.role === 'ADMIN') && (
+              <Button variant="outline" as={Link} to={`/payments?orderId=${orderId}`} size="sm">
+                Payer
+              </Button>
+            )}
+            {user?.role === 'ADMIN' && orderId && !invoice && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() =>
+                  documentService
+                    .generateInvoice(orderId)
+                    .then(() => load())
+                    .catch((err: unknown) =>
+                      setError(err instanceof Error ? err.message : 'Erreur')
+                    )
+                }
+              >
+                Générer la facture
+              </Button>
+            )}
+          </div>
+        }
+      />
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Facture */}
+        <Card>
+          <CardHeader><CardTitle>Facture commerciale</CardTitle></CardHeader>
+          <CardContent>
+            {invoice ? (
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-semibold">{invoice.numero_facture}</p>
+                  <p className="text-sm text-nextrade-muted">
+                    {invoice.montant_ttc} {invoice.devise}
+                  </p>
+                </div>
+                <Link
+                  to={`/invoices/${invoice.id_invoice}`}
+                  className="text-sm font-semibold text-nextrade-blue hover:underline"
+                >
+                  Voir →
+                </Link>
+              </div>
+            ) : factures.length > 0 ? (
+              <ul className="space-y-1">
+                {factures.map((doc) => (
+                  <li key={doc.id_document}>
+                    <Link to={`/documents/${doc.id_document}`} className="text-sm text-nextrade-blue hover:underline">
+                      {doc.reference_document}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-nextrade-muted">Aucune facture.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Packing List */}
+        <Card>
+          <CardHeader><CardTitle>Packing List</CardTitle></CardHeader>
+          <CardContent>
+            {packing.length > 0 ? (
+              <ul className="space-y-1">
+                {packing.map((doc) => (
+                  <li key={doc.id_document}>
+                    <Link to={`/documents/${doc.id_document}`} className="text-sm text-nextrade-blue hover:underline">
+                      {doc.reference_document}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-nextrade-muted">Aucune packing list.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Autres documents */}
+        <Card>
+          <CardHeader><CardTitle>Autres documents</CardTitle></CardHeader>
+          <CardContent>
+            {autres.length > 0 ? (
+              <ul className="space-y-1">
+                {autres.map((doc) => (
+                  <li key={doc.id_document}>
+                    <Link to={`/documents/${doc.id_document}`} className="text-sm text-nextrade-blue hover:underline">
+                      {doc.reference_document}{' '}
+                      <span className="text-nextrade-muted">({formatStatus(doc.type_document)})</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-nextrade-muted">Aucun autre document.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Formalités douanières */}
+        <Card>
+          <CardHeader><CardTitle>Formalités douanières</CardTitle></CardHeader>
+          <CardContent>
+            {formalities.length > 0 ? (
+              <ul className="space-y-2">
+                {formalities.map((item) => (
+                  <li key={item.id_formality} className="flex items-center justify-between gap-3">
+                    <span className="text-sm">{formatStatus(item.type_formality)}</span>
+                    <Badge variant={statusToBadge(item.statut)}>
+                      {formatStatus(item.statut)}
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-nextrade-muted">Aucune formalité.</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
-
-      <section className="bg-white rounded-lg shadow p-4 sm:p-6">
-        <h2 className="font-semibold mb-2">Facture commerciale</h2>
-        {invoice && (
-          <p className="text-sm mb-2">
-            {invoice.numero_facture} — {invoice.montant_ttc} {invoice.devise}{' '}
-            <Link className="text-blue-700 underline" to={`/invoices/${invoice.id_invoice}`}>Voir</Link>
-          </p>
-        )}
-        {factures.map((doc) => (
-          <div key={doc.id_document} className="text-sm">
-            <Link className="text-blue-700 underline" to={`/documents/${doc.id_document}`}>{doc.reference_document}</Link>
-          </div>
-        ))}
-        {!invoice && factures.length === 0 && <p className="text-gray-500 text-sm">Aucune facture.</p>}
-      </section>
-
-      <section className="bg-white rounded-lg shadow p-4 sm:p-6">
-        <h2 className="font-semibold mb-2">Packing List</h2>
-        {packing.length === 0 && <p className="text-gray-500 text-sm">Aucune packing list.</p>}
-        {packing.map((doc) => (
-          <div key={doc.id_document} className="text-sm">
-            <Link className="text-blue-700 underline" to={`/documents/${doc.id_document}`}>{doc.reference_document}</Link>
-          </div>
-        ))}
-      </section>
-
-      <section className="bg-white rounded-lg shadow p-4 sm:p-6">
-        <h2 className="font-semibold mb-2">Autres documents</h2>
-        {autres.length === 0 && <p className="text-gray-500 text-sm">Aucun autre document.</p>}
-        {autres.map((doc) => (
-          <div key={doc.id_document} className="text-sm">
-            <Link className="text-blue-700 underline" to={`/documents/${doc.id_document}`}>{doc.reference_document} ({doc.type_document})</Link>
-          </div>
-        ))}
-      </section>
-
-      <section className="bg-white rounded-lg shadow p-4 sm:p-6">
-        <h2 className="font-semibold mb-2">Formalités douanières</h2>
-        {formalities.length === 0 && <p className="text-gray-500 text-sm">Aucune formalité.</p>}
-        <ul className="text-sm space-y-1">
-          {formalities.map((item) => (
-            <li key={item.id_formality}>{item.type_formality} — {item.statut}</li>
-          ))}
-        </ul>
-      </section>
     </div>
   );
 };

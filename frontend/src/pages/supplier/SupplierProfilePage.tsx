@@ -1,6 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { getSupplierProfile } from '../../services/supplierService';
 import { useI18n } from '../../i18n/I18nProvider';
+import {
+  PageHeader,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Badge,
+  EmptyState,
+} from '../../components/ui';
 
 type SupplierProfile = {
   id_supplier_profile: string;
@@ -13,6 +22,12 @@ type SupplierProfile = {
   date_verification: string | null;
 };
 
+function verificationVariant(v: string): 'success' | 'warning' | 'danger' {
+  if (v === 'VERIFIE') return 'success';
+  if (v === 'REJETE') return 'danger';
+  return 'warning';
+}
+
 const SupplierProfilePage: React.FC = () => {
   const { t } = useI18n();
   const [profile, setProfile] = useState<SupplierProfile | null>(null);
@@ -21,27 +36,67 @@ const SupplierProfilePage: React.FC = () => {
 
   useEffect(() => {
     let active = true;
-    getSupplierProfile().then((result) => active && setProfile(result as SupplierProfile)).catch((caught) => active && setError(caught instanceof Error ? caught.message : t('error'))).finally(() => active && setLoading(false));
+    getSupplierProfile()
+      .then((result) => { if (active) setProfile(result as SupplierProfile); })
+      .catch((caught) => { if (active) setError(caught instanceof Error ? caught.message : t('error')); })
+      .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [t]);
 
-  if (loading) return <div className="h-64 animate-pulse rounded-xl bg-slate-100" />;
-  if (error) return <section role="alert" className="rounded-xl border border-red-200 bg-red-50 p-5 text-red-700">{error}</section>;
-  if (!profile) return <section className="rounded-xl border bg-white p-5">{t('supplierProfileMissing')}</section>;
+  if (loading) return <div className="h-64 animate-pulse rounded-xl3 bg-slate-200" />;
+  if (error) return <EmptyState variant="error" title={t('error')} description={error} />;
+  if (!profile) return <EmptyState variant="empty" title={t('supplierProfileMissing')} />;
 
   return (
     <div className="space-y-6">
-      <div><p className="text-sm text-blue-700">{t('supplierWorkspace')}</p><h1 className="mt-1 text-2xl font-bold">{t('supplierProfile')}</h1></div>
-      <section className="rounded-xl border bg-white p-5 shadow-sm">
-        <dl className="grid gap-5 sm:grid-cols-2">
-          <div><dt className="text-sm text-slate-500">{t('supplierCompany')}</dt><dd className="mt-1 font-medium">{profile.nom || profile.identifiant_professionnel || '—'}</dd></div>
-          <div><dt className="text-sm text-slate-500">{t('supplierContact')}</dt><dd className="mt-1 break-all font-medium">{profile.email_professionnel || '—'}</dd></div>
-          <div><dt className="text-sm text-slate-500">{t('supplierTelephone')}</dt><dd className="mt-1 font-medium">{profile.telephone || '—'}</dd></div>
-          <div><dt className="text-sm text-slate-500">{t('supplierProfileStatus')}</dt><dd className="mt-1 font-medium">{t(`verification${profile.statut_verification}`)}</dd></div>
-          <div className="sm:col-span-2"><dt className="text-sm text-slate-500">{t('supplierDescription')}</dt><dd className="mt-1 whitespace-pre-line">{profile.description || t('supplierDescriptionEmpty')}</dd></div>
-        </dl>
-      </section>
-      <p className="text-sm text-slate-500">{t('supplierProfileReadOnly')}</p>
+      <PageHeader
+        title={t('supplierProfile')}
+        description={t('supplierWorkspace')}
+      />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('supplierProfile')}</CardTitle>
+          <Badge variant={verificationVariant(profile.statut_verification)}>
+            {t(`verification${profile.statut_verification}`)}
+          </Badge>
+        </CardHeader>
+        <CardContent>
+          <dl className="grid gap-5 sm:grid-cols-2">
+            <div>
+              <dt className="text-xs text-nextrade-muted">{t('supplierCompany')}</dt>
+              <dd className="mt-1 font-medium">
+                {profile.nom ?? profile.identifiant_professionnel ?? '—'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-nextrade-muted">{t('supplierContact')}</dt>
+              <dd className="mt-1 break-all font-medium">
+                {profile.email_professionnel ?? '—'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-nextrade-muted">{t('supplierTelephone')}</dt>
+              <dd className="mt-1 font-medium">{profile.telephone ?? '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-nextrade-muted">{t('supplierProfileStatus')}</dt>
+              <dd className="mt-1">
+                <Badge variant={verificationVariant(profile.statut_verification)}>
+                  {t(`verification${profile.statut_verification}`)}
+                </Badge>
+              </dd>
+            </div>
+            <div className="sm:col-span-2">
+              <dt className="text-xs text-nextrade-muted">{t('supplierDescription')}</dt>
+              <dd className="mt-1 whitespace-pre-line text-nextrade-muted">
+                {profile.description ?? t('supplierDescriptionEmpty')}
+              </dd>
+            </div>
+          </dl>
+          <p className="mt-5 text-xs text-nextrade-muted">{t('supplierProfileReadOnly')}</p>
+        </CardContent>
+      </Card>
     </div>
   );
 };

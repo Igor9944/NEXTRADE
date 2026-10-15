@@ -2,37 +2,54 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Design tokens CSS (conservés pour compatibilité et usages fins) ─── */
 :root {
-  --nextrade-navy: #061f3a;
-  --nextrade-blue: #0b5fb3;
-  --nextrade-cyan: #1db8ff;
-  --nextrade-turquoise: #72d8f8;
-  --nextrade-ice: #ebf8ff;
-  --nextrade-surface: #ffffff;
-  --nextrade-surface-soft: #f3f8ff;
-  --nextrade-ink: #12263d;
-  --nextrade-muted: #5d6f82;
-  --nextrade-border: rgba(11, 95, 179, 0.12);
-  --nextrade-success: #1f9d75;
-  --nextrade-warning: #ef7f3d;
-  --nextrade-danger: #d94b5c;
+  --nextrade-navy:      #0B2F70;
+  --nextrade-blue:      #0759C7;
+  --nextrade-cyan:      #25BDF0;
+  --nextrade-turquoise: #7BE8EE;
+  --nextrade-ice:       #EBF8FF;
+  --nextrade-surface:   #ffffff;
+  --nextrade-surface-soft: #F4F8FC;
+  --nextrade-ink:       #172B4D;
+  --nextrade-muted:     #66768A;
+  --nextrade-border:    #DCE7F3;
+  --nextrade-success:   #10B981;
+  --nextrade-warning:   #F59E0B;
+  --nextrade-danger:    #EF4444;
+  --nextrade-info:      #3B82F6;
 }
 
-html {
-  scroll-behavior: smooth;
+/* ─── Base ─── */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply antialiased font-inter;
+    background: linear-gradient(180deg, #dfeffc 0%, #f6fbff 100%);
+    color: var(--nextrade-ink);
+    min-height: 100vh;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  /* Focus visible ring cohérent */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-nextrade-blue ring-offset-2;
+  }
+
+  /* Sélection de texte */
+  ::selection {
+    background-color: rgba(29, 184, 255, 0.2);
+    color: var(--nextrade-ink);
+  }
 }
 
-body {
-  @apply antialiased;
-  font-family: Inter, 'Segoe UI', sans-serif;
-  background: linear-gradient(180deg, #dfeffc 0%, #f6fbff 100%);
-  color: var(--nextrade-ink);
-}
-
-#root {
-  min-height: 100vh;
-}
-
+/* ─── Backgrounds identitaires ─── */
 .nextrade-pattern {
   background-image: url('/assets/nextrade/nextrade-pattern.jpg');
   background-size: cover;
@@ -58,4 +75,104 @@ body {
   background-image: url('/assets/nextrade/logistics-icons-reference.jpeg');
   background-size: cover;
   background-position: center;
+}
+
+/* ─── Composants utilitaires ─── */
+@layer components {
+
+  /* ── Boutons ── */
+  .nxt-btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold
+           transition-all duration-250 focus-visible:ring-2 focus-visible:ring-offset-2
+           disabled:cursor-not-allowed disabled:opacity-55 select-none;
+  }
+  .nxt-btn-sm  { @apply h-8  px-3 text-xs; }
+  .nxt-btn-md  { @apply h-10 px-4 text-sm; }
+  .nxt-btn-lg  { @apply h-12 px-6 text-base; }
+
+  .nxt-btn-primary {
+    @apply nxt-btn bg-nextrade-blue text-white shadow-sm
+           hover:bg-nextrade-navy active:bg-nextrade-navy
+           focus-visible:ring-nextrade-blue;
+  }
+  .nxt-btn-secondary {
+    @apply nxt-btn bg-nextrade-soft text-nextrade-blue border border-nextrade-border
+           hover:bg-nextrade-ice active:bg-nextrade-ice
+           focus-visible:ring-nextrade-blue;
+  }
+  .nxt-btn-outline {
+    @apply nxt-btn border border-nextrade-blue text-nextrade-blue bg-transparent
+           hover:bg-nextrade-ice active:bg-nextrade-ice
+           focus-visible:ring-nextrade-blue;
+  }
+  .nxt-btn-ghost {
+    @apply nxt-btn text-nextrade-muted bg-transparent
+           hover:bg-slate-100 active:bg-slate-200
+           focus-visible:ring-slate-400;
+  }
+  .nxt-btn-destructive {
+    @apply nxt-btn bg-nextrade-danger text-white shadow-sm
+           hover:bg-nextrade-danger/80 active:bg-nextrade-danger
+           focus-visible:ring-nextrade-danger;
+  }
+
+  /* ── Inputs ── */
+  .nxt-input {
+    @apply w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm
+           text-nextrade-ink placeholder:text-nextrade-muted
+           transition-colors duration-250 outline-none
+           focus:border-nextrade-blue focus:ring-2 focus:ring-nextrade-blue/20
+           disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-nextrade-muted
+           read-only:bg-slate-50;
+  }
+  .nxt-input-error {
+    @apply border-nextrade-danger focus:border-nextrade-danger focus:ring-nextrade-danger/20;
+  }
+
+  /* ── Cards ── */
+  .nxt-card {
+    @apply rounded-xl3 border border-nextrade-border bg-white shadow-card
+           transition-shadow duration-250;
+  }
+  .nxt-card-interactive {
+    @apply nxt-card cursor-pointer hover:-translate-y-0.5 hover:shadow-panel;
+  }
+  .nxt-card-stat {
+    @apply nxt-card p-5;
+  }
+
+  /* ── Badges ── */
+  .nxt-badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold;
+  }
+  .nxt-badge-success   { @apply nxt-badge bg-nextrade-success/20  text-nextrade-success; }
+  .nxt-badge-warning   { @apply nxt-badge bg-nextrade-warning/20  text-nextrade-warning; }
+  .nxt-badge-danger    { @apply nxt-badge bg-nextrade-danger/20   text-nextrade-danger; }
+  .nxt-badge-info      { @apply nxt-badge bg-nextrade-info/20     text-nextrade-info; }
+  .nxt-badge-neutral   { @apply nxt-badge bg-slate-100   text-slate-600; }
+  .nxt-badge-pending   { @apply nxt-badge bg-nextrade-warning/100 text-nextrade-warning; }
+  .nxt-badge-processing{ @apply nxt-badge bg-nextrade-info/100    text-nextrade-info; }
+
+  /* ── Tables ── */
+  .nxt-table-head {
+    @apply text-start text-xs font-semibold uppercase tracking-wide text-nextrade-muted
+           pb-3 pe-4 border-b border-nextrade-border;
+  }
+  .nxt-table-cell {
+    @apply py-3 pe-4 text-sm text-nextrade-ink align-middle border-b border-slate-100;
+  }
+}
+
+/* ─── Shadows ─── */
+.shadow-card {
+  @apply shadow-[0_4px_24px_rgba(11,_89,_223,_0.06)];
+}
+.shadow-panel {
+  @apply shadow-[0_8px_40px_rgba(11,_89,_223,_0.10)];
+}
+.shadow-modal {
+  @apply shadow-[0_20px_60px_rgba(11,_89,_223,_0.18)];
+}
+.shadow-float {
+  @apply shadow-[0_30px_80px_rgba(11,_89,_223,_0.25)];
 }
